@@ -37,7 +37,7 @@ ENV/
 *.tar
 *.tar.gz
 *.gz
-
+*_phase/
 # === Except: keep small tracked reference files if needed ===
 # (uncomment/adjust if you specifically need to track certain .npy or .pkl files)
 # !bundle/solution/**/*.npy

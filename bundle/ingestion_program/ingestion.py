@@ -9,6 +9,9 @@ import traceback
 import torch
 from torch.utils.data import RandomSampler
 
+SUBMISSION_DIR = sys.argv[3]
+sys.path.insert(0, SUBMISSION_DIR)
+
 from nas import NAS
 from data_processor import DataProcessor
 from trainer import Trainer
@@ -17,9 +20,6 @@ from trainer import Trainer
 
 INPUT_DIR = sys.argv[1]
 OUTPUT_DIR = sys.argv[2]
-SUBMISSION_DIR = sys.argv[3]
-
-sys.path.insert(0, SUBMISSION_DIR)
 
 # === DATA LOADING HELPERS ===
 def load_dataset_metadata(dataset_path):

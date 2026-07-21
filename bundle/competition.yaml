@@ -5,13 +5,13 @@
 title: NAS Unseen-Data Challenge 2026
 version: 2 # this means that it is a Codabench bundle
 description: Evaluating NAS pipelines on entirely novel, unseen datasets rather than well-known benchmarks. Hosted at AutoML 2026.
-image: https://www.nascompetition.com/images/logo.svg
+image: logo.svg
 registration_auto_approve: True  # do not require approval from organizers to join
-docker_image: codalab/codalab-legacy:py312 # the Docker image in which submissions are run
+docker_image: codalab/codalab-legacy:gpu312 # the Docker image in which submissions are run
 enable_detailed_results: True
 
 # Documentation web pages
-terms: pages/rules.md
+terms: pages/terms.md
 pages:
   - title: Overview
     file: pages/overview.md
@@ -21,8 +21,6 @@ pages:
     file: pages/data.md
   - title: Evaluation
     file: pages/evaluation.md
-  - title: Terms
-    file: pages/terms.md
 
 # Definition of the tasks
 tasks:
@@ -30,8 +28,8 @@ tasks:
     name: Phase 2 Task
     description: 'Phase 2: submit your NAS pipeline for a shorter test run on our system.'
     is_public: false
-    input_data: phase_2/input_data         # Input data is given to the submitted code (X)
-    reference_data: phase_2/reference_data # Reference data is the ground truth (y)
+    input_data: feedback_phase/input_data         # Input data is given to the submitted code (X)
+    reference_data: feedback_phase/reference_data # Reference data is the ground truth (y)
     scoring_program: scoring_program       # The scoring program compares predictions and ground truth
     ingestion_program: ingestion_program   # The ingestion program takes a code submission and generates predictions
   - index: 1
@@ -39,8 +37,8 @@ tasks:
     description: 'Phase 3: your last working Phase 2 submission is automatically
       cloned and rerun for a longer final run. There is no separate Phase 3 submission.'
     is_public: false
-    input_data: phase_3/input_data
-    reference_data: phase_3/reference_data
+    input_data: feedback_phase/input_data
+    reference_data: feedback_phase/reference_data
     scoring_program: scoring_program
     ingestion_program: ingestion_program
     solutions: []
@@ -93,8 +91,7 @@ fact_sheet: {
     "selection": "",
     "is_required": "false",
     "is_on_leaderboard": "true"
-  }
-}
+  }}
 
 # Leaderboard
 leaderboards:
@@ -104,27 +101,19 @@ leaderboards:
     submission_rule: "Force_Best"
     columns:
       - title: Average Adjusted Score
-        key: avg_score
+        key: Final_Score
         index: 0
         sorting: desc
-        computation: avg
-        computation_indexes:
-          - 1
-          - 2
-          - 3
-      - title: Dataset 1
-        key: dataset1
+      - title: Mateo
+        key: Mateo_Adj_Score
         index: 1
         sorting: desc
-      - title: Dataset 2
-        key: dataset2
+      - title: LaMelo
+        key: LaMelo_Adj_Score
         index: 2
         sorting: desc
-      - title: Dataset 3
-        key: dataset3
+      - title: Adaline
+        key: Adaline_Adj_Score
         index: 3
         sorting: desc
-      - title: Duration
-        key: duration
-        index: 4
-        sorting: asc
+        

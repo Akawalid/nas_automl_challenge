@@ -1,0 +1,19 @@
+{
+  "Sokoto_Runtime": 39.04,
+  "Sokoto_Params": 8135,
+  "Sokoto_Raw_Score": 11.09,
+  "Sokoto_Adj_Score": 1.109,
+  "LaMelo_Runtime": 41.73,
+  "LaMelo_Params": 55370,
+  "LaMelo_Raw_Score": 81.28,
+  "LaMelo_Adj_Score": -2.649,
+  "cifartile_Runtime": 6351.3,
+  "cifartile_Params": 739892,
+  "cifartile_Raw_Score": 27.53,
+  "cifartile_Adj_Score": -3.676,
+  "Gutenberg_Runtime": 41.83,
+  "Gutenberg_Params": 46706,
+  "Gutenberg_Raw_Score": 33.6,
+  "Gutenberg_Adj_Score": -1.25,
+  "Final_Score": -6.466
+}
