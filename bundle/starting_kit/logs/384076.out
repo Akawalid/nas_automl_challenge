@@ -1,0 +1,10 @@
+rm -Rf scoring
+rm -Rf package
+rm -Rf package
+mkdir package
+mkdir package/predictions
+mkdir package/datasets
+rsync -ar --exclude='**/test_y.npy' ../feedback_phase/input_data/* package/datasets/
+cp -R ../ingestion_program/ingestion.py package/ingestion.py
+cp -R nas-challenge-submission-main/submission_gromo/* package
+cd package; python3 ingestion.py datasets predictions .

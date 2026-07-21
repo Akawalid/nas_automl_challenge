@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/home/tau/ochabane/bundle/starting_kit/package/ingestion.py", line 15, in <module>
+ModuleNotFoundError: No module named 'nas'
+make: *** [Makefile:20: run] Error 1

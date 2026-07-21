@@ -1,0 +1,14 @@
+**/*.pyc
+.vscode
+
+datasets
+data
+hide
+
+package
+scoring
+scoring*
+*.zip
+
+submission_example
+submission_marina

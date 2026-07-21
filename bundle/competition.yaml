@@ -1,0 +1,119 @@
+# This file contains the main settings of the benchmark
+# Learn more here: https://docs.codabench.org/latest/Organizers/Benchmark_Creation/Yaml-Structure/
+
+# Main settings
+title: NAS Unseen-Data Challenge 2026
+version: 2 # this means that it is a Codabench bundle
+description: Evaluating NAS pipelines on entirely novel, unseen datasets rather than well-known benchmarks. Hosted at AutoML 2026.
+image: logo.svg
+registration_auto_approve: True  # do not require approval from organizers to join
+docker_image: codalab/codalab-legacy:gpu312 # the Docker image in which submissions are run
+enable_detailed_results: True
+
+# Documentation web pages
+terms: pages/terms.md
+pages:
+  - title: Overview
+    file: pages/overview.md
+  - title: Instructions
+    file: pages/instructions.md
+  - title: Data
+    file: pages/data.md
+  - title: Evaluation
+    file: pages/evaluation.md
+
+# Definition of the tasks
+tasks:
+  - index: 0
+    name: Phase 2 Task
+    description: 'Phase 2: submit your NAS pipeline for a shorter test run on our system.'
+    is_public: false
+    input_data: feedback_phase/input_data         # Input data is given to the submitted code (X)
+    reference_data: feedback_phase/reference_data # Reference data is the ground truth (y)
+    scoring_program: scoring_program       # The scoring program compares predictions and ground truth
+    ingestion_program: ingestion_program   # The ingestion program takes a code submission and generates predictions
+  - index: 1
+    name: Phase 3 Task
+    description: 'Phase 3: your last working Phase 2 submission is automatically
+      cloned and rerun for a longer final run. There is no separate Phase 3 submission.'
+    is_public: false
+    input_data: feedback_phase/input_data
+    reference_data: feedback_phase/reference_data
+    scoring_program: scoring_program
+    ingestion_program: ingestion_program
+    solutions: []
+
+# Sample code submission
+# /!\ Solution is an example submission, NOT the ground truth /!\
+solutions:
+  - index: 0
+    tasks:
+      - 0
+      - 1
+    path: solution/
+
+# There are 2 phases: Phase 2 and Phase 3
+# Each one is linked to a task
+phases:
+  - index: 0
+    name: Phase 2
+    description: 'Phase 2: submit your NAS pipeline (DataProcessor, NAS, Trainer)
+      to obtain feedback. You have a submission limit of 7.'
+    start: 1-1-2026 # Month/Day/Year
+    end: 7-31-2026
+    max_submissions_per_day: 0
+    max_submissions: 7
+    execution_time_limit: 86400 # 24 hours, per Rules page
+    tasks:
+      - 0
+    solutions: []
+    starting_kit: starting_kit
+    public_data: phase_2/input_data
+  - index: 1
+    name: Phase 3
+    description: 'Phase 3: your last working Phase 2 submission is automatically
+      cloned and used to compute the final score. Results are announced at AutoML 2026
+      in Ljubljana, September 28th - October 1st. Finalists will be informed in August.'
+    start: 8-1-2026 # Never ends
+    max_submissions_per_day: 0
+    max_submissions: 0
+    execution_time_limit: 86400
+    tasks:
+      - 1
+    solutions: []
+
+# Fact sheets to add more information in the leaderboard
+fact_sheet: {
+  "method_name": {
+    "key": "method_name",
+    "type": "text",
+    "title": "Method name",
+    "selection": "",
+    "is_required": "false",
+    "is_on_leaderboard": "true"
+  }}
+
+# Leaderboard
+leaderboards:
+  - index: 0
+    title: Results
+    key: Results
+    submission_rule: "Force_Best"
+    columns:
+      - title: Average Adjusted Score
+        key: Final_Score
+        index: 0
+        sorting: desc
+      - title: Mateo
+        key: Mateo_Adj_Score
+        index: 1
+        sorting: desc
+      - title: LaMelo
+        key: LaMelo_Adj_Score
+        index: 2
+        sorting: desc
+      - title: Adaline
+        key: Adaline_Adj_Score
+        index: 3
+        sorting: desc
+        
