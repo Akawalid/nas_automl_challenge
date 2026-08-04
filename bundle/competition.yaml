@@ -5,7 +5,7 @@
 title: NAS Unseen-Data Challenge 2026
 version: 2 # this means that it is a Codabench bundle
 description: Evaluating NAS pipelines on entirely novel, unseen datasets rather than well-known benchmarks. Hosted at AutoML 2026.
-image: logo.svg
+image: logo.png
 registration_auto_approve: True  # do not require approval from organizers to join
 docker_image: codalab/codalab-legacy:gpu312 # the Docker image in which submissions are run
 enable_detailed_results: True
@@ -28,8 +28,6 @@ tasks:
     name: Phase 2 Task
     description: 'Phase 2: submit your NAS pipeline for a shorter test run on our system.'
     is_public: false
-    input_data: feedback_phase/input_data         # Input data is given to the submitted code (X)
-    reference_data: feedback_phase/reference_data # Reference data is the ground truth (y)
     scoring_program: scoring_program       # The scoring program compares predictions and ground truth
     ingestion_program: ingestion_program   # The ingestion program takes a code submission and generates predictions
   - index: 1
@@ -37,11 +35,15 @@ tasks:
     description: 'Phase 3: your last working Phase 2 submission is automatically
       cloned and rerun for a longer final run. There is no separate Phase 3 submission.'
     is_public: false
-    input_data: feedback_phase/input_data
-    reference_data: feedback_phase/reference_data
     scoring_program: scoring_program
-    ingestion_program: ingestion_program
+    ingestion_program: ingestion_program_phase3
     solutions: []
+  - index: 2
+    name: Phase 1 Task
+    description: 'Phase 1: develop and test your NAS pipeline locally against public practice datasets.'
+    is_public: false
+    scoring_program: scoring_program
+    ingestion_program: ingestion_program_phase3
 
 # Sample code submission
 # /!\ Solution is an example submission, NOT the ground truth /!\
@@ -50,31 +52,46 @@ solutions:
     tasks:
       - 0
       - 1
+      - 2
     path: solution/
 
-# There are 2 phases: Phase 2 and Phase 3
-# Each one is linked to a task
+# There are 3 phases: Phase 1, Phase 2 and Phase 3, each with its own task
+# (Phase 1 Task, Phase 2 Task, Phase 3 Task) so each can use different data
 phases:
   - index: 0
-    name: Phase 2
-    description: 'Phase 2: submit your NAS pipeline (DataProcessor, NAS, Trainer)
-      to obtain feedback. You have a submission limit of 7.'
+    name: Phase 1
+    description: 'Phase 1: download our framework and develop your NAS pipeline
+      (DataProcessor, NAS, Trainer) locally.'
     start: 1-1-2026 # Month/Day/Year
-    end: 7-31-2026
+    end: 8-3-2026
     max_submissions_per_day: 0
     max_submissions: 7
     execution_time_limit: 86400 # 24 hours, per Rules page
     tasks:
+      - 2
+    solutions: []
+    starting_kit: starting_kit
+  - index: 1
+    name: Phase 2
+    description: 'Phase 2: submit your NAS pipeline (DataProcessor, NAS, Trainer)
+      to obtain feedback. You have a submission limit of 7. This is a smoke test
+      run (1 hour total, across all datasets) to confirm your submission runs
+      end-to-end without crashing -- it is not the scored performance run.'
+    start: 8-4-2026 # Month/Day/Year
+    end: 8-31-2026
+    max_submissions_per_day: 0
+    max_submissions: 7
+    execution_time_limit: 3600 # 1 hour total -- Phase 2 is a smoke test, not the scored run
+    tasks:
       - 0
     solutions: []
     starting_kit: starting_kit
-    public_data: phase_2/input_data
-  - index: 1
+  - index: 2
     name: Phase 3
     description: 'Phase 3: your last working Phase 2 submission is automatically
       cloned and used to compute the final score. Results are announced at AutoML 2026
       in Ljubljana, September 28th - October 1st. Finalists will be informed in August.'
-    start: 8-1-2026 # Never ends
+    start: 9-1-2026 # Never ends
     max_submissions_per_day: 0
     max_submissions: 0
     execution_time_limit: 86400
@@ -116,4 +133,7 @@ leaderboards:
         key: Adaline_Adj_Score
         index: 3
         sorting: desc
-        
+      - title: Duration (s)
+        key: Total_Runtime
+        index: 4
+        sorting: asc

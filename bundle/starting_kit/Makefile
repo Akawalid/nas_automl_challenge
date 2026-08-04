@@ -2,8 +2,8 @@ ifndef submission
 $(error submission is undefined)
 endif
 
-DATA_DIR = ../feedback_phase/input_data
-REF_DIR = ../feedback_phase/reference_data
+DATA_DIR = ../../feedback_phase/input_data
+REF_DIR = ../../feedback_phase/reference_data
 INGESTION_DIR = ../ingestion_program
 SCORING_DIR = ../scoring_program
 
@@ -12,7 +12,7 @@ build:
 	mkdir package
 	mkdir package/predictions
 	mkdir package/datasets
-	rsync -ar --exclude='**/test_y.npy' $(DATA_DIR)/* package/datasets/
+	rsync -ar $(DATA_DIR)/* package/datasets/
 	cp -R $(INGESTION_DIR)/ingestion.py package/ingestion.py
 	cp -R $(submission)/* package
 

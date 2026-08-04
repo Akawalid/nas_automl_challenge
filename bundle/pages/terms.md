@@ -10,7 +10,7 @@
 
 - **Submission method:** 
     - Your last working Phase 2 submission will be used for Phase 3, there is NO seperate Phase 3 submission. Your submissions are expected to adapt to any changes in time alloted or environment between Phase 2 and 3.
-    - The results must be submitted through this Codabench site. The number of submissions per day and maximum total computational time are restrained and subject to change, according to the number of participants. Using multiple accounts to increase the number of submissions in NOT permitted, except that participants that want to enter the 2 leagues "free-style" and "meta-learning" are allowed to create a second account under the name "originalID_2" , where originalID is their other account they use to make submissions (we will ask in the fact sheets which is which). In case of problem, send email to [mailto:organizers-email](organizers-email). The entries must be formatted as specified on the Instructions page.
+    - The results must be submitted through this Codabench site. The number of submissions per day and maximum total computational time are restrained and subject to change, according to the number of participants. Using multiple accounts to increase the number of submissions in NOT permitted, except that participants that want to enter the 2 leagues "free-style" and "meta-learning" are allowed to create a second account under the name "originalID_2" , where originalID is their other account they use to make submissions (we will ask in the fact sheets which is which). In case of problem, send email to [nas-competition-contact@newcastle.ac.uk](mailto:nas-competition-contact@newcastle.ac.uk). The entries must be formatted as specified on the Instructions page.
 
 - **Registration:** The participants must register to Codabench and provide a valid email address. Teams must register only once and provide a group email, which is forwarded to all team members. Teams or solo participants registering multiple times to gain an advantage in the competition may be disqualified.
 
@@ -36,3 +36,4 @@
 <img src="https://www.nascompetition.com/images/hzb-logo.svg" height="80" style="margin: 10px 15px;">
 
 </div>
+

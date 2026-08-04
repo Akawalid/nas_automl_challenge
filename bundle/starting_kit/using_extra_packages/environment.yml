@@ -1,0 +1,23 @@
+name: codabench-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12.13
+  - pip
+  - cython=3.2.8
+  - numpy=2.5.1
+  - matplotlib=3.11.0
+  - seaborn=0.13.2
+  - scipy=1.18.0
+  - scikit-learn=1.9.0
+  - pandas=3.0.3
+  - pyyaml=6.0.3       # pip name: PyYAML
+  - imutils=0.5.4
+  - opencv=5.0.0        # pip name: opencv-python==5.0.0.93 (conda-forge drops the wheel build suffix)
+  - pytorch=2.12.1      # pip name: torch
+  - tensorflow=2.21.0
+  - tqdm=4.68.4
+  - psutil=7.2.2
+  - h5py=3.14.0
+  - jupyter=1.1.1

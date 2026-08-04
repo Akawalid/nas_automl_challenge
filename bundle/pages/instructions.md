@@ -2,7 +2,7 @@
 
 ### Technical Details
 
-A great place to start is to look at the template and example submissions, to get an idea of what each of three files we're asking you to write should look like. Additionally, the evaluation directory in the Starting Kit contains the evaluation scripts that our machines will be using, so you can see exactly how it all works. However, the following section will also quickly go through everything that you will need to do.
+A great place to start is to look at the template and example submissions, to get an idea of what each of three files we're asking you to write should look like. The "Evaluation Pipeline" section below describes exactly how our machines will run and score your submission. The following section will also quickly go through everything that you will need to do.
 
 ### How a submission works
 
@@ -11,13 +11,13 @@ As a starting point, check out the template submission within the Starting Kit. 
 For a valid submission, you are asked to implement the following functions within the following classes:
 
 - **`DataProcessor`:**
-  - `__init__()`: This function receives raw data in the form of numpy arrays for the train, valid, and test data, as well the dataset metadata
+  - `__init__()`: This function receives raw data in the form of numpy arrays for the train, valid, and test data, the dataset metadata, and a shared `clock` object tracking the compute time left for the whole submission
   - `process()`: This function must output 3 PyTorch dataloaders for the train, valid, and test data splits
 - **`NAS`:**
-  - `__init__()`: This function receives the dataloaders created by the `DataProcessor`, and the dataset metadata
+  - `__init__()`: This function receives the dataloaders created by the `DataProcessor`, the dataset metadata, and the shared `clock` object
   - `search()`: This function should search for an optimal architecture for this dataset, and should output a PyTorch model
 - **`Trainer`:**
-  - `__init__()`: This function receives the dataloaders created by the `DataProcessor`, and the model produced by the `NAS` class
+  - `__init__()`: This function receives the dataloaders created by the `DataProcessor`, the model produced by the `NAS` class, the dataset metadata, and the shared `clock` object
   - `train()`: This function should fully train your model and return it
   - `predict()`: This function should produce a list of predicted class labels over the `test_dataloader`
 
@@ -55,7 +55,7 @@ We believe NAS pipelines should be responsive to the memory of the machine they 
 
 ### Submission Runtime limit
 
-**Your submission will have 24 hours total to run on Codabench servers.** That means it needs to perform the entire NAS pipeline, training, and test prediction for each of the three final datasets within 24 hours. **If your submission exceeds this time, it will be instantly terminated and will receive no score.** To help you keep aware of this, the evaluation pipeline will add a field to the metadata dictionary called `time_remaining`. This is an estimate of the remaining time your submission has in seconds. You can use this to early-stop your algorithm, tailor your training epochs, adjust your search algorithm, whatever you need to do to ensure your submission runs in under 24 hours.
+**Phase 2 gives your submission 1 hour total to run on Codabench servers, shared across all three datasets.** This is a smoke test to confirm your submission runs end-to-end without crashing -- it is not the scored performance run. **Phase 3 (the real, scored run) gives your submission 24 hours total instead.** Either way, that budget needs to cover the entire NAS pipeline, training, and test prediction for each of the three datasets. **If your submission exceeds its budget, it will be instantly terminated and will receive no score.** To help you keep aware of this, the evaluation pipeline will add a field to the metadata dictionary called `time_remaining`, and passes a shared `clock` object into your `DataProcessor`, `NAS`, and `Trainer` classes. This is an estimate of the remaining time your submission has in seconds. You can use this to early-stop your algorithm, tailor your training epochs, adjust your search algorithm, whatever you need to do to ensure your submission runs within its budget.
 
 ### Other
 

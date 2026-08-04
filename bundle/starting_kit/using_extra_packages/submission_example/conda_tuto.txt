@@ -1,15 +1,27 @@
-This submission file shows how to include extra Python packages in your submission.
-Here we use LightGBM, which is not available by default in the Codabench environment.
+This example shows how to include extra Python packages in your submission.
+Here we use gromo (git+https://github.com/growingnet/gromo.git@main), which is
+not available by default in the Codabench environment -- the same package the
+provided gromo solution needs.
 
 To prepare your submission:
-1) Create a fresh conda environment from the environment.yml file placed at the root of the starting_kit:
-   conda env create -f environment.yml
+1) Create a fresh conda environment from the environment.yml file placed in this
+   using_extra_packages folder:
+   conda env create -f ../environment.yml
 2) Activate the environment:
    conda activate codabench-env
-3) Create a folder named `python_packages` in the same directory as this file
-4) Install LightGBM into that folder:
-   pip install --target python_packages lightgbm
-5) Edit this file with your model
-6) Compress your submission into a zip file (the python_packages folder will be included):
-   cd PATH_TO_YOUR_FOLDER && zip -r ../submission.zip .
+3) Create a folder named `python_packages` in the same directory as your
+   nas.py / data_processor.py / trainer.py / helpers.py submission files
+4) Install the extra package into that folder with --no-deps, then separately
+   install any of ITS dependencies that aren't already in the Codabench base
+   image (see ../environment.yml / ../requirements.txt for what's already there).
+   Using --no-deps avoids re-bundling torch/numpy/etc., which would bloat your
+   zip and can conflict with the versions already in the Codabench environment.
+   For gromo specifically:
+   pip install --target python_packages --no-deps "git+https://github.com/growingnet/gromo.git@main#egg=gromo"
+   pip install --target python_packages --no-deps torchmetrics lightning-utilities tomli deprecated wrapt
+5) In your submission files, add the `python_packages` folder to sys.path before
+   importing the extra package (see step 3 in uv_tuto.txt for the exact snippet).
+   The provided `solution/` is a working example of this whole pattern.
+6) Compress your submission into a zip file (the python_packages folder must be included):
+   cd PATH_TO_YOUR_SUBMISSION_FOLDER && zip -r ../submission.zip .
 7) Submit the zip file in the "My Submissions" tab on Codabench

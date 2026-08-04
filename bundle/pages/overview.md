@@ -1,5 +1,5 @@
 # NAS Unseen-Data Challenge 2026
-
+Starter-kit available here: [download](PASTE_STARTING_KIT_LINK_HERE)
 There is a lot of evidence that Neural Architecture Search can produce excellent models capable of ML tasks on well-known datasets, that is, datasets like CIFAR-10 and ImageNet where years of research have created a set of best practices to follow to achieve good results. This leads us to wonder, are we overfitting our NAS algorithms to well-known datasets?
 
 We want to investigate the "real-world" use case of NAS, that is, searching for a state-of-the-art architecture on an entirely novel dataset. In such a case, there is no existing set of best practices to build from, nor extensive research into optimal architectural patterns, augmentation policies, or hyperparameter selection. In essence, we are asking how well NAS pipelines can work "out-of-the-box" with little-to-no time for tuning. To explore this, we have designed this competition to evaluate how well a NAS pipeline fares over unseen novel tasks and datasets.
@@ -11,8 +11,8 @@ This year we are running the competition at **AutoML 2026** (2026.automl.cc). Au
 ## Phases
 
 The competition will be run in three phases:
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! à revoir
-- **Phase 1:** You download our framework, and develop your method locally.
+
+- **Phase 1:** You will have access to prior challenge datasets develop your method locally.
 - **Phase 2:** You send us your submission, and we do a shorter test run on our system.
 - **Phase 3:** We rerun your last working Phase 2 submission for a longer final run.
 

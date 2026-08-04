@@ -13,8 +13,9 @@ class Trainer:
             'input_shape': A tuple describing [n_total_datapoints, channel, height, width] of the input data
             'time_remaining': The amount of compute time left for your submission
             plus anything else you added in the DataProcessor or NAS classes
+        * clock: the shared Clock object tracking compute time left for the whole submission
     """
-    def __init__(self, model, device, train_dataloader, valid_dataloader, metadata):
+    def __init__(self, model, device, train_dataloader, valid_dataloader, metadata, clock):
         self.model = model
 
 

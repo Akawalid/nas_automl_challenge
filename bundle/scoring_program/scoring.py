@@ -20,6 +20,7 @@ if __name__ == '__main__':
         print("=" * 75)
 
         total_score = 0
+        total_runtime = 0
         overall_stats = {}
         for dataset in os.listdir(LABELS_DIR):
             print("== Scoring {} ==".format(dataset))
@@ -48,6 +49,8 @@ if __name__ == '__main__':
                 adj_score = max(-10, adj_score)
 
             total_score += adj_score
+            if not run_stats['Failed']:
+                total_runtime += run_stats['Runtime']
 
             print("Raw Score:    {:.3f}".format(raw_score))
             print("Adj Score:    {:.3f}".format(adj_score))
@@ -60,7 +63,9 @@ if __name__ == '__main__':
 
         print("===========================")
         print("Final Score: {:.3f}".format(total_score))
-        overall_stats['Final_Score'] = np.round(total_score, 3)
+        print("Total Runtime: {:,.1f}s".format(total_runtime))
+        overall_stats['Final_Score'] = float(np.round(total_score, 3))
+        overall_stats['Total_Runtime'] = float(np.round(total_runtime, 3))
         with open(os.path.join(OUTPUT_DIR, "scores.json"), "w") as f:
             json.dump(overall_stats, f)
     except Exception as e:
