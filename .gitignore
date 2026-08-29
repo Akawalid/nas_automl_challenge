@@ -56,3 +56,19 @@ Thumbs.db
 
 # === Conda / uv environments (per using_extra_packages) ===
 using_extra_packages/**/*.tar.gz
+
+
+experimental_grow-main/
+
+# === nas-challenge-submission-main build artifacts (Makefile: build/run/score) and downloaded
+# benchmark data (the multi-hundred-MB train/valid/test .npy arrays fetched by
+# run_demeter_margaret.slurm) -- all regenerable, never worth tracking ===
+/nas-challenge-submission-main/package/
+/nas-challenge-submission-main/scoring/
+/nas-challenge-submission-main/datasets/
+
+# === Except: results a margaret run pushes back (predictions + stats + the run log) are small
+# (label arrays / text, not training data) and are meant to be tracked -- re-include them despite
+# the blanket *.npy/*.pkl/*.log excludes above ===
+!/nas-challenge-submission-main/results/
+!/nas-challenge-submission-main/results/**

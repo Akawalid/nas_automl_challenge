@@ -18,7 +18,9 @@ from data_processor import DataProcessor
 from trainer import Trainer
 
 #Time limit in hours
-TIME_LIMIT = 12
+# Overridable via NAS_TIME_LIMIT_HOURS (e.g. for a full multi-dataset benchmark run where 12h is
+# too tight, without changing the default the real competition harness is meant to mirror locally).
+TIME_LIMIT = int(os.environ.get("NAS_TIME_LIMIT_HOURS", 12))
 
 # === DATA LOADING HELPERS =============================================================================================
 # find the dataset filepaths

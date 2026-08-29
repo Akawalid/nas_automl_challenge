@@ -1,0 +1,668 @@
+import string
+from typing import Any, Callable, Iterable
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.utils.data
+
+from gromo.utils.disk_dataset import MemMapDataset
+
+
+__global_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def set_device(device: str | torch.device) -> None:
+    """Set default global device
+
+    Parameters
+    ----------
+    device : str | torch.device
+        device choice
+    """
+    global __global_device
+    __global_device = torch.device(device)
+
+
+def reset_device() -> None:
+    """Reset global device"""
+    global __global_device
+    __global_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def global_device() -> torch.device:
+    """Get global device for whole codebase
+
+    Returns
+    -------
+    torch.device
+        global device
+    """
+    global __global_device
+    return __global_device
+
+
+def get_correct_device(self: object, device: torch.device | str | None) -> torch.device:
+    """Get the correct device based on precedence order
+    Precedence works as follows:
+        argument > config file > global_device
+
+    Parameters
+    ----------
+    self : object
+    device : torch.device | str | None
+        chosen device argument, leave empty to use config file
+
+    Returns
+    -------
+    torch.device
+        selected correct device
+    """
+    device = torch.device(
+        device
+        if device is not None
+        else set_from_conf(self, "device", global_device(), setter=False)
+    )
+    return device
+
+
+def torch_zeros(*size: int, **kwargs: Any) -> torch.Tensor:
+    """Create zero tensors on global selected device
+
+    Parameters
+    ----------
+    *size : int
+        variable number of integers that form the shape tuple of the tensor
+    **kwargs : Any
+
+    Returns
+    -------
+    torch.Tensor
+        zero-initialized tensor of defined size on global device
+    """
+    global __global_device
+    try:
+        return torch.zeros(size=size, device=__global_device, **kwargs)  # type: ignore
+    except TypeError:
+        return torch.zeros(*size, device=__global_device, **kwargs)
+
+
+def torch_ones(*size: int, **kwargs: Any) -> torch.Tensor:
+    """Create one tensors on global selected device
+
+    Parameters
+    ----------
+    *size : int
+        variable number of integers that form the shape tuple of the tensor
+    **kwargs : Any
+
+    Returns
+    -------
+    torch.Tensor
+        one-initialized tensor of defined size on global device
+    """
+    global __global_device
+    try:
+        return torch.ones(size=size, device=__global_device, **kwargs)  # type: ignore
+    except TypeError:
+        return torch.ones(*size, device=__global_device, **kwargs)
+
+
+def set_from_conf(
+    self: object, name: str, default: Any = None, setter: bool = True
+) -> Any:
+    """Standardize private argument setting from config file
+
+    Parameters
+    ----------
+    self : object
+        object where load_config() has been called
+    name : str
+        name of variable
+    default : Any, optional
+        default value in case config does not provide one, by default None
+    setter : bool, optional
+        set the retrieved value as argument in the object, by default True
+
+    Returns
+    -------
+    Any
+        value set to variable
+    """
+    # Check that config file has been found and read
+    assert hasattr(self, "_config_data")
+    assert isinstance(self._config_data, dict)
+
+    value = self._config_data.get(name, default)
+
+    if setter:
+        setattr(self, f"{name}", value)
+
+    return value
+
+
+class _ReLUDerivativeOneAtZero(torch.autograd.Function):
+    """ReLU forward; backward uses (x >= 0) so the subgradient at 0 is 1, not 0."""
+
+    @staticmethod
+    def forward(ctx: Any, x: torch.Tensor) -> torch.Tensor:
+        ctx.save_for_backward(x)
+        return torch.clamp(x, min=0.0)
+
+    @staticmethod
+    def backward(ctx: Any, grad_output: torch.Tensor) -> torch.Tensor:
+        (x,) = ctx.saved_tensors
+        mask = (x >= 0).to(dtype=grad_output.dtype)
+        return grad_output * mask
+
+
+class ReLUDerivativeOneAtZero(nn.Module):
+    """
+    ReLU with the convention :math:`f'(0)=1` (and :math:`f(0)=0`).
+
+    Forward matches :class:`torch.nn.ReLU`. For the backward, gradients use the
+    mask ``x >= 0`` instead of PyTorch's ``x > 0``, so a pre-activation exactly
+    zero is treated like the linear branch with unit slope—consistent with
+    assumptions that :math:`f(0)=0` and :math:`f'(0)=1` when zero lies in the
+    linear part. Standard ``nn.ReLU`` yields zero gradient at :math:`x=0`.
+    """
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply ReLU with derivative set to 1 at :math:`x=0`."""
+        return _ReLUDerivativeOneAtZero.apply(x)
+
+
+known_activations_zero_plus_gradient: dict[type[torch.nn.Module], float] = {
+    torch.nn.ReLU: 1.0,
+    ReLUDerivativeOneAtZero: 1.0,
+    torch.nn.GELU: 0.5,
+    torch.nn.SELU: 1.0507,
+    torch.nn.SiLU: 0.5,
+    torch.nn.Tanh: 1.0,
+    torch.nn.Sigmoid: 0.25,
+    torch.nn.Identity: 1.0,
+}
+
+
+def activation_fn(fn_name: str) -> nn.Module:
+    """Create activation function module by name
+
+    Parameters
+    ----------
+    fn_name : str
+        name of activation function
+
+    Returns
+    -------
+    nn.Module
+        activation function module
+
+    Raises
+    ------
+    ValueError
+        if the function is unknown
+    """
+    known_activations = {
+        "relu": nn.ReLU(),
+        "relu_derivative_one_at_zero": ReLUDerivativeOneAtZero(),
+        "gelu": nn.GELU(),
+        "selu": nn.SELU(),
+        "silu": nn.SiLU(),
+        "tanh": nn.Tanh(),
+        "sigmoid": nn.Sigmoid(),
+        "identity": nn.Identity(),
+        "id": nn.Identity(),
+        "softmax": nn.Softmax(dim=1),
+    }
+    if fn_name is None:
+        return nn.Identity()
+    fn_name = fn_name.strip().lower()
+    if fn_name in known_activations:
+        return known_activations[fn_name]
+    else:
+        raise ValueError(f"Unknown activation function: {fn_name}")
+
+
+def compute_tensor_stats(tensor: torch.Tensor) -> dict[str, float]:
+    """
+    Compute basic statistics of a tensor (min, max, mean, std).
+
+    Parameters
+    ----------
+    tensor : torch.Tensor
+        The input tensor for which to compute statistics.
+
+    Returns
+    -------
+    dict[str, float]
+        A dictionary containing the computed statistics.
+    """
+    if tensor.numel() == 0:
+        return {
+            "min": float("nan"),
+            "max": float("nan"),
+            "mean": float("nan"),
+            "std": float("nan"),
+        }
+    else:
+        min_value = tensor.min().item()
+        max_value = tensor.max().item()
+        mean_value = tensor.mean().item()
+        std_value = tensor.std().item() if tensor.numel() > 1 else 0.0
+        return {
+            "min": min_value,
+            "max": max_value,
+            "mean": mean_value,
+            "std": std_value,
+        }
+
+
+def line_search(
+    cost_fn: Callable, return_history: bool = False
+) -> tuple[float, float] | tuple[list, list]:
+    """Line search for black-box convex function
+
+    Parameters
+    ----------
+    cost_fn : Callable
+        black-box convex function
+    return_history : bool, optional
+        return full loss history, by default False
+
+    Returns
+    -------
+    tuple[float, float] | tuple[list, list]
+        return minima and min value
+        if return_history is True return instead tested parameters and loss history
+    """
+    losses = []
+    n_points = 100
+    f_min = 1e-6
+    f_max = 1
+    f_test = np.concatenate(
+        [np.zeros(1), np.logspace(np.log10(f_min), np.log10(f_max), n_points)]
+    )
+
+    decrease = True
+    min_loss = np.inf
+    f_full = np.array([])
+
+    while decrease:
+        for factor in f_test:
+            loss = cost_fn(factor)
+            losses.append(loss)
+
+        f_full = np.concatenate([f_full, f_test])
+
+        new_min = np.min(losses)
+        decrease = new_min < min_loss
+        min_loss = new_min
+
+        f_min = f_max
+        f_max = f_max * 10
+        f_test = np.logspace(np.log10(f_min), np.log10(f_max), n_points)
+
+    factor = f_full[np.argmin(losses)]
+    min_loss = np.min(losses)
+
+    if return_history:
+        return list(f_full), losses
+    else:
+        return factor, min_loss
+
+
+def mini_batch_gradient_descent(
+    model: nn.Module | Callable,
+    cost_fn: Callable,
+    X: torch.Tensor | str,
+    Y: torch.Tensor | str,
+    lrate: float,
+    max_epochs: int,
+    batch_size: int,
+    x_keys: list[str] = [],
+    y_keys: list[str] = [],
+    parameters: Iterable | None = None,
+    fast: bool = False,
+    eval_fn: Callable | None = None,
+    verbose: bool = True,
+) -> tuple[list[float], list[float]]:
+    """Mini-batch gradient descent implementation
+    Uses AdamW with no weight decay and shuffled DataLoader
+
+    Parameters
+    ----------
+    model : nn.Module | Callable
+        pytorch model or forwards function
+    cost_fn : Callable
+        cost function
+    X : torch.Tensor | str
+        input features or input file name
+    Y : torch.Tensor | str
+        true labels or labels' file name
+    lrate : float
+        learning rate
+    max_epochs : int
+        maximum epochs
+    batch_size : int
+        batch size
+    x_keys: list[str], optional
+        input keys for lazy loading dataset, by default []
+    y_keys: list[str], optional
+        target keys for lazy loading dataset, by default []
+    parameters: Iterable | None, optional
+        list of torch parameters in case the model is just a forward function, by default None
+    fast : bool, optional
+        fast implementation without evaluation, by default False
+    eval_fn : Callable | None, optional
+        evaluation function, by default None
+    verbose : bool, optional
+        print info, by default True
+
+    Returns
+    -------
+    tuple[list[float], list[float]]
+        train loss history, train accuracy history
+
+    Raises
+    ------
+    TypeError
+        if X and Y do not have the same type, or the type is not supported
+    ValueError
+        if X and Y are of type str and the keys are not given
+    AttributeError
+        if the model is just a forward function, the parameters argument must not be None or empty
+    """
+    loss_history, acc_history = [], []
+
+    if type(X) is not type(Y):
+        raise TypeError(
+            f"X and Y should have the same type. Got {type(X)=} and {type(Y)=}"
+        )
+
+    if isinstance(X, str):
+        assert isinstance(Y, str)
+        if len(x_keys) <= 0 or len(y_keys) <= 0:
+            raise ValueError("At least one key is required for X and Y")
+        dataset = MemMapDataset(X, Y, x_keys, y_keys)
+    elif isinstance(X, torch.Tensor):
+        assert isinstance(Y, torch.Tensor)
+        dataset = torch.utils.data.TensorDataset(X, Y)
+    else:
+        raise TypeError(
+            f"Inappropriate type for X. Expected torch.Tensor or str. Got {type(X)}"
+        )
+
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    if not isinstance(model, nn.Module):
+        if (parameters is None) or (len(parameters) < 1):
+            raise AttributeError(
+                "When the model is just a forward function, the parameters argument must not be None or empty"
+            )
+    else:
+        parameters = model.parameters()
+    optimizer = torch.optim.AdamW(parameters, lr=lrate, weight_decay=0)
+
+    for epoch in range(max_epochs):
+        correct, total, epoch_loss = 0, 0, 0
+        for x_batch, y_batch in dataloader:
+            x_batch, y_batch = x_batch.to(global_device()), y_batch.to(global_device())
+            optimizer.zero_grad()
+
+            output = model(x_batch)
+            loss = cost_fn(output, y_batch)
+            epoch_loss += loss.item()
+
+            if not fast:
+                correct += (output.argmax(axis=1) == y_batch).int().sum().item()
+                total += len(output)
+
+            loss.backward()
+
+            optimizer.step()
+
+        loss_history.append(epoch_loss / len(dataloader))
+        if not fast:
+            accuracy = correct / total
+            acc_history.append(accuracy)
+            if eval_fn is not None:
+                eval_fn()
+
+        if verbose and epoch % 10 == 0:
+            if fast:
+                print(f"Epoch {epoch}: Train loss {loss_history[-1]}")
+            else:
+                print(
+                    f"Epoch {epoch}: Train loss {loss_history[-1]} Train Accuracy {accuracy}"
+                )
+
+    return loss_history, acc_history
+
+
+def batch_gradient_descent(
+    forward_fn: Callable,
+    cost_fn: Callable,
+    target: torch.Tensor,
+    optimizer: torch.optim.Optimizer,
+    max_epochs: int = 100,
+    tol: float = 1e-5,  # noqa: ARG001
+    fast: bool = True,
+    eval_fn: Callable | None = None,
+) -> tuple[list[float], list[float]]:
+    """Batch gradient descent implementation
+
+    Parameters
+    ----------
+    forward_fn : Callable
+        Forward function
+    cost_fn : Callable
+        cost function that computes loss between model output and target
+    target : torch.Tensor
+        target tensor
+    optimizer : torch.optim.Optimizer
+        optimizer
+    max_epochs : int, optional
+        max number of epochs, by default 100
+    tol : float, optional
+        tolerance, by default 1e-5
+    fast : bool, optional
+        fast implementation without evaluation, by default True
+    eval_fn : Callable | None, optional
+        evaluation function, by default None
+
+    Returns
+    -------
+    tuple[list[float], list[float]]
+        loss history, accuracy history
+    """
+    # print(target, target.shape)
+    # temp = (target**2).sum()
+    # print(temp)
+    loss_history, acc_history = [], []
+    min_loss = np.inf
+    # prev_loss = np.inf
+
+    for _ in range(max_epochs):
+        output = forward_fn()
+        loss = cost_fn(output, target)
+        loss_history.append(loss.item())
+
+        if not fast:
+            correct = (output.argmax(axis=1) == target).int().sum().item()
+            accuracy = correct / len(output)
+            if eval_fn:
+                eval_fn()
+            acc_history.append(accuracy)
+
+        loss.backward(retain_graph=False)
+        optimizer.step()
+        optimizer.zero_grad()
+
+        # Early stopping
+        # if np.abs(prev_loss - loss.item()) <= tol:
+        #     break
+        if loss.item() < min_loss:
+            min_loss = loss.item()
+        # prev_loss = loss.item()
+        # target.detach_()
+
+    return loss_history, acc_history
+
+
+def calculate_true_positives(
+    actual: torch.Tensor, predicted: torch.Tensor, label: int
+) -> tuple[float, float, float]:
+    """Calculate true positives, false positives and false negatives of a specific label
+
+    Parameters
+    ----------
+    actual : torch.Tensor
+        true labels
+    predicted : torch.Tensor
+        predicted labels
+    label : int
+        target label to calculate metrics
+
+    Returns
+    -------
+    tuple[float, float, float]
+        true positives, false positives, false negatives
+    """
+    true_positives = torch.sum((actual == label) & (predicted == label)).item()
+    false_positives = torch.sum((actual != label) & (predicted == label)).item()
+    false_negatives = torch.sum((predicted != label) & (actual == label)).item()
+
+    return true_positives, false_positives, false_negatives
+
+
+def f1(actual: torch.Tensor, predicted: torch.Tensor, label: int) -> float:
+    """Calculate f1 score of specific label
+
+    Parameters
+    ----------
+    actual : torch.Tensor
+        true labels
+    predicted : torch.Tensor
+        predicted labels
+    label : int
+        target label to calculate f1 score
+
+    Returns
+    -------
+    float
+        f1 score of label
+    """
+    # F1 = 2 * (precision * recall) / (precision + recall)
+    tp, fp, fn = calculate_true_positives(actual, predicted, label)
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * (precision * recall) / (precision + recall)
+    return f1
+
+
+def f1_micro(actual: torch.Tensor, predicted: torch.Tensor) -> float:
+    """Calculate f1 score with micro average
+
+    Parameters
+    ----------
+    actual : torch.Tensor
+        true labels
+    predicted : torch.Tensor
+        predicted labels
+
+    Returns
+    -------
+    float
+        micro-average f1 score
+    """
+    true_positives, false_positives, false_negatives = {}, {}, {}
+    for label in np.unique(actual):
+        tp, fp, fn = calculate_true_positives(actual, predicted, label)
+        true_positives[label] = tp
+        false_positives[label] = fp
+        false_negatives[label] = fn
+
+    all_true_positives = np.sum(list(true_positives.values()))
+    all_false_positives = np.sum(list(false_positives.values()))
+    all_false_negatives = np.sum(list(false_negatives.values()))
+
+    micro_precision = all_true_positives / (all_true_positives + all_false_positives)
+    micro_recall = all_true_positives / (all_true_positives + all_false_negatives)
+
+    f1 = 2 * (micro_precision * micro_recall) / (micro_precision + micro_recall)
+
+    return f1
+
+
+def f1_macro(actual: torch.Tensor, predicted: torch.Tensor) -> float:
+    """Calculate f1 score with macro average
+
+    Parameters
+    ----------
+    actual : torch.Tensor
+        true labels
+    predicted : torch.Tensor
+        predicted labels
+
+    Returns
+    -------
+    float
+        macro-average f1 score
+    """
+    return float(np.mean([f1(actual, predicted, label) for label in np.unique(actual)]))
+
+
+def compute_BIC(nb_params: int, loss: float, n: int) -> float:
+    """Bayesian Information Criterion
+    BIC = k*log(n) - 2log(L), where k is the number of parameters
+
+    Parameters
+    ----------
+    nb_params : int
+        number of parameters
+    loss : float
+        loss of the model
+    n : int
+        number of samples used for training
+
+    Returns
+    -------
+    float
+        BIC score
+    """
+    return nb_params * np.log2(n) - 2 * np.log2(loss)
+
+
+def alphabetic_index(i: int, alphabet: str = string.ascii_lowercase) -> str:
+    """Give an alphabetic based on an index
+
+    Parameters
+    ----------
+    i : int
+        index
+    alphabet : str, optional
+        alphabet to index and repeat, by default string.ascii_lowercase
+
+    Returns
+    -------
+    str
+        alphabetic index
+
+    Raises
+    ------
+    ValueError
+        if the index is negative
+    """
+    if i < 0:
+        raise ValueError("index must be non-negative")
+
+    base = len(alphabet)
+    out = []
+    i += 1  # switch to 1-based to get 'a'..'z' then 'aa'...
+
+    while i > 0:
+        i -= 1
+        i, r = divmod(i, base)
+        out.append(alphabet[r])
+
+    return "".join(reversed(out))

@@ -1,0 +1,92 @@
+Inconsistencies found in Stella_s_neurips_2026.pdf
+"Should I train or should I grow? Single-Run Architecture Search by Network Growth"
+(anonymous NeurIPS 2026 submission, 25 pages)
+
+Notes found while reading the paper to implement its method ("Demeter") as a NAS-challenge
+submission. Scope: internal inconsistencies within the paper's own text/notation only -- not bugs
+found in the accompanying code (gromo / experimental_grow), which are documented separately as
+code comments in the submission itself (search for "LOCAL PATCH" in
+nas-challenge-submission-main/submission_demeter/python_packages/gromo, and the "Bugs found"
+notes given interactively during the build).
+
+--------------------------------------------------------------------------------
+
+1) Threshold symbol mismatch: tau vs. s
+
+   Same concept (the per-channel pruning cutoff on new-neuron alignment score, used to decide
+   "how much" to grow), same numeric value (2.8e-4), two different symbols depending on which
+   part of the paper you're in:
+
+   - Algorithm 1 ("Growth Step"), page 17, formal pseudocode:
+       "Require: Threshold tau on the per-channel relevance"
+       "C* <- {c : r_c >= tau}"                    (step labelled [how much])
+
+   - Section 4.1 (Experimental setup), main text:
+       "...we performed grid search only once on MultNIST for the growth-stopping threshold u
+       and the neuron selection threshold s, and used the found hyperparameters
+       (u = 1e-5, s = 2.8e-4)..."
+
+   - Appendix B (Hyperparameters):
+       "The neurons are then selected using the threshold s = 2.8e-4 on their first order
+       improvement."
+
+   The prose (main text + Appendix B) consistently uses "s"; the formal algorithm box uses "tau"
+   for the identical quantity. Not a difference in meaning or value -- just inconsistent notation
+   across sections of the same paper.
+
+--------------------------------------------------------------------------------
+
+2) Is the classification head's hidden size (Z) grown, or fixed?
+
+   - Figure 4 caption (Section 3.5, macro-architecture diagram):
+       "...finally Global Average Pooling (GAP) feeding growable fully-connected layers.
+       C1, C2, C3, C4, and Z are also free to grow."
+     -> claims Z (the linear head's hidden width) is growable, same as the DAG cells' channel
+        counts C1..C4.
+
+   - Appendix A (Architecture), describing the actual seed/benchmark configuration:
+       "The hidden size of the first linear layer is fixed at 128 neurons."
+     -> explicitly states Z is FIXED, not grown, for the benchmarked runs.
+
+   This is also confirmed against the actual reference implementation
+   (experimental_grow-main/experiments/pipeline/pipeline.py, function `cycle_layers`): the growth
+   loop's layer-cycling logic only ever visits GrowingGraphNetwork instances (the four DAG cells,
+   dag1..dag4) --
+
+       while not isinstance(growing_dag, GrowingGraphNetwork):
+           current_layer_idx = (current_layer_idx + 1) % len(model._growing_layers)
+           growing_dag = model._growing_layers[current_layer_idx]
+
+   -- so the linear head's own layers (mlp1 / mlp_merge / mlp2 in cell_arch.py's
+   CellArchitecture) are never selected for a growth step, despite being present in
+   `model._growing_layers`. In practice Z never grows; only C1..C4 do.
+
+   So: Figure 4's caption states the general framework's capability (Z "is also free to grow"),
+   while Appendix A and the actual code describe what the benchmarked configuration actually does
+   (Z fixed at 128). Worth knowing if you're matching the paper's reported numbers exactly --
+   the submission implemented here (submission_demeter) follows Appendix A / the actual code
+   (Z fixed), not the Figure 4 caption's more general claim.
+
+--------------------------------------------------------------------------------
+
+Not flagged as inconsistencies (checked and found consistent, noted here so they aren't
+re-litigated):
+
+ - Algorithm 2's "DesiredUpdate" (the per-DAG freeze/strike quantity) initially looked like it
+   might conflict with the "expressivity bottleneck" used for "where to grow", but tracing
+   pipeline.py's actual `update_computation` function confirmed both the paper's wording and the
+   code use the RAW pre-activation gradient (not the bottleneck) for the freeze check -- no
+   inconsistency, just easy to conflate the two quantities on a first read.
+ - Cumulative downsampling: Figure 4 shows resolutions H, H/2, H/4, H/8 across the four DAG cells
+   (3 poolings between 4 stages); Section 3.5's text says "a cumulated dimensionality reduction of
+   a factor 8" -- consistent.
+ - Seed counts (5 for fixed architectures, 3 for NAS/Demeter, 5 for the MultNIST growth-strategy
+   ablation) are stated consistently across Section 4.1, Appendix B, and the Table 2/3/4 captions.
+
+
+
+
+
+
+
+Line 526, section name unknown

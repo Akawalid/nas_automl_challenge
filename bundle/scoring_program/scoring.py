@@ -23,12 +23,13 @@ if __name__ == '__main__':
         total_runtime = 0
         overall_stats = {}
         for dataset in os.listdir(LABELS_DIR):
-            print("== Scoring {} ==".format(dataset))
-
             data_path = os.path.join(LABELS_DIR, dataset)
 
             with open(os.path.join(data_path, 'metadata'), "r") as f:
                 metadata = json.load(f)
+
+            print("== Scoring {} ==".format(metadata['codename']))
+
             with open(os.path.join(PREDICTIONS_DIR, "{}_stats.pkl".format(metadata['codename'])), "rb") as f:
                 run_stats = pkl.load(f)
 

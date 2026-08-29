@@ -1,0 +1,15 @@
+# choose correct CUDA version for your system. See submission_gromo_dag/requirements.txt for CPU/other-CUDA variants.
+-f https://download.pytorch.org/whl/cu113/torch_stable.html
+torch==2.6.0
+torchvision==0.21.0
+
+scikit-learn
+numpy
+Deprecated
+
+# gromo itself is vendored in python_packages/, from Santiago Florido's own fork/branch
+# (github.com/Santiago23florido/gromo.git@AblationDAG) -- the checkout experimental_grow-main is
+# actually built against. This submission specifically needs the DAG-network additions in that
+# fork (GrowingGraphNetwork/GrowingDAG with LayerNorm/BatchNorm/GroupNorm node normalization) that
+# experiments/pipeline/models/cell_arch.py (vendored here as model.py) relies on. See
+# README_DEMETER.md.
