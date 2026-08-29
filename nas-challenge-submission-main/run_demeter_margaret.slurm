@@ -11,10 +11,12 @@
 # reproduce paper-quality final numbers. Set DEMETER_FAST_RUN=0 for the real, full-fidelity run.
 #
 # I (Claude) cannot submit or run this on margaret myself -- I have no access to that cluster.
-# This script follows the same --partition=tau / /home/tau/$USER/tau_frugal/$USER/logs conventions
-# as the existing *.slurm files in experimental_grow-main/{hydra_script,experiments/pipeline}/, but
-# activates a plain Python venv (not conda) -- point VENV_DIR at one with
-# torch/torchvision/scikit-learn/numpy/Deprecated installed.
+# This script follows the same --partition=tau convention as the existing *.slurm files in
+# experimental_grow-main/{hydra_script,experiments/pipeline}/, but writes its own SLURM
+# stdout/stderr next to the script itself (slurm-<jobname>-<jobid>.{out,err}, relative to wherever
+# you run `sbatch` from) rather than to their /tau_frugal/ logs convention, and activates a plain
+# Python venv (not conda) -- point VENV_DIR at one with torch/torchvision/scikit-learn/numpy/Deprecated
+# installed.
 #
 # Usage:
 #   1. git clone (or pull) this repo onto margaret -- see PROJECT_DIR below.
@@ -30,8 +32,8 @@
 #SBATCH --cpus-per-task=6
 #SBATCH --ntasks=1
 #SBATCH --time=06:00:00
-#SBATCH --output=/home/tau/%u/tau_frugal/%u/logs/slurm-%x-%j.out
-#SBATCH --error=/home/tau/%u/tau_frugal/%u/logs/slurm-%x-%j.err
+#SBATCH --output=slurm-%x-%j.out
+#SBATCH --error=slurm-%x-%j.err
 
 set -euo pipefail
 
@@ -40,7 +42,7 @@ set -euo pipefail
 # ==================================================================================================
 
 # Where this repo (specifically nas-challenge-submission-main/) lives on margaret.
-PROJECT_DIR="${PROJECT_DIR:-$HOME/NAS}"
+PROJECT_DIR="${PROJECT_DIR:-$HOME/nas}"
 
 # Which submission folder to run (must exist under $PROJECT_DIR/nas-challenge-submission-main/).
 SUBMISSION="${SUBMISSION:-submission_demeter}"
@@ -157,7 +159,7 @@ make submission="$SUBMISSION" all
 mkdir -p "$RESULTS_DIR"
 rsync -av package/predictions/ "$RESULTS_DIR/predictions/"
 [ -d scoring ] && rsync -av scoring/ "$RESULTS_DIR/scoring/"
-cp "/home/tau/${USER}/tau_frugal/${USER}/logs/slurm-${SLURM_JOB_NAME:-demeter_benchmarks}-${SLURM_JOB_ID:-manual}.out" \
+cp "slurm-${SLURM_JOB_NAME:-demeter_benchmarks}-${SLURM_JOB_ID:-manual}.out" \
    "$RESULTS_DIR/run.log" 2>/dev/null || true
 
 echo "Done. Results left at nas-challenge-submission-main/$RESULTS_DIR"
