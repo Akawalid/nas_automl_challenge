@@ -7,6 +7,16 @@ scikit-learn
 numpy
 Deprecated
 
+# Vendored gromo's own dependencies, not otherwise pulled in transitively by torch/torchvision/
+# scikit-learn/Deprecated -- found by statically scanning every import in python_packages/gromo
+# against a truly fresh install (a pre-existing dev venv had masked these). tomli: gromo/config/
+# loader.py (unconditional `import tomli`, no Python-3.11+ tomllib fallback). torchmetrics:
+# gromo/utils/training_utils.py, unconditionally imported by containers/growing_dag.py (which
+# model.py imports directly) -- not optional. (torchinfo, used only by containers/resnet.py, is
+# NOT needed: nothing in this submission's actual import graph ever imports resnet.py.)
+tomli
+torchmetrics
+
 # gromo itself is vendored in python_packages/, from Santiago Florido's own fork/branch
 # (github.com/Santiago23florido/gromo.git@AblationDAG) -- the checkout experimental_grow-main is
 # actually built against. This submission specifically needs the DAG-network additions in that
