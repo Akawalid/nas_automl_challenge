@@ -71,6 +71,12 @@ export DEMETER_FAST_RUN="${DEMETER_FAST_RUN:-1}"
 # setup/downloads/scoring/copy-out.
 export NAS_TIME_LIMIT_HOURS="${NAS_TIME_LIMIT_HOURS:-5}"
 
+# Without this, Python fully-buffers stdout when it's not an interactive terminal (i.e. always,
+# under SLURM) -- print() output (including the per-round progress lines and any crash traceback)
+# only reaches the log file once the buffer fills or the process exits cleanly. If it crashes or
+# hangs instead, that output can be lost for good. This makes every print() flush immediately.
+export PYTHONUNBUFFERED=1
+
 # ==================================================================================================
 
 cd "$PROJECT_DIR/nas-challenge-submission-main"

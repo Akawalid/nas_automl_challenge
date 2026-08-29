@@ -44,6 +44,14 @@ notes given interactively during the build).
      -> claims Z (the linear head's hidden width) is growable, same as the DAG cells' channel
         counts C1..C4.
 
+   - The Figure 4 DIAGRAM ITSELF (not just the caption text) labels the two linear layers
+     explicitly: "linear 1: C4 -> Z" then "linear 2: Z -> Cout". This confirms Z is specifically
+     the hidden size between the two FC layers (linear 1's output / linear 2's input) -- i.e.
+     exactly the quantity Appendix A below calls "the hidden size of the first linear layer".
+     Cout is a separate, further-downstream box (the final num_classes output) that Appendix A
+     never mentions at all -- so this isn't two different variables being conflated, it's the
+     same named variable (Z) getting opposite claims (growable vs. fixed) in two sections.
+
    - Appendix A (Architecture), describing the actual seed/benchmark configuration:
        "The hidden size of the first linear layer is fixed at 128 neurons."
      -> explicitly states Z is FIXED, not grown, for the benchmarked runs.
@@ -67,24 +75,7 @@ notes given interactively during the build).
    the submission implemented here (submission_demeter) follows Appendix A / the actual code
    (Z fixed), not the Figure 4 caption's more general claim.
 
---------------------------------------------------------------------------------
-
-Not flagged as inconsistencies (checked and found consistent, noted here so they aren't
-re-litigated):
-
- - Algorithm 2's "DesiredUpdate" (the per-DAG freeze/strike quantity) initially looked like it
-   might conflict with the "expressivity bottleneck" used for "where to grow", but tracing
-   pipeline.py's actual `update_computation` function confirmed both the paper's wording and the
-   code use the RAW pre-activation gradient (not the bottleneck) for the freeze check -- no
-   inconsistency, just easy to conflate the two quantities on a first read.
- - Cumulative downsampling: Figure 4 shows resolutions H, H/2, H/4, H/8 across the four DAG cells
-   (3 poolings between 4 stages); Section 3.5's text says "a cumulated dimensionality reduction of
-   a factor 8" -- consistent.
- - Seed counts (5 for fixed architectures, 3 for NAS/Demeter, 5 for the MultNIST growth-strategy
-   ablation) are stated consistently across Section 4.1, Appendix B, and the Table 2/3/4 captions.
-
-
-
+-------------------------------------------------------------------------------
 
 
 

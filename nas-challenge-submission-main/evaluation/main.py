@@ -134,10 +134,17 @@ def main():
 def run_wrapper(e:Event, runclock:Clock):
     try:
         run_submission(runclock)
-    except Exception as e:
-        print(e)
-        print(traceback.format_exc())
-    e.set()
+    except Exception as ex:
+        # NOTE: was `except Exception as e:`, which rebinds the Event parameter 'e' to the
+        # exception -- Python then auto-deletes that name when the except block exits (to avoid a
+        # traceback reference cycle), so the old `e.set()` below crashed with UnboundLocalError on
+        # every single failure. That masked the real exception (this print is stdout, buffered,
+        # and the crash meant it never got flushed) AND left the process hanging alive until
+        # TIME_LIMIT/the SLURM wall-clock killed it, burning the rest of the job for nothing.
+        print(ex, flush=True)
+        print(traceback.format_exc(), flush=True)
+    finally:
+        e.set()
 
 
 def run_submission(runclock:Clock):
