@@ -427,6 +427,16 @@ def growth_step_for_dag(
         neuron_selection_threshold=neuron_selection_threshold,
         verbose=verbose,
     )
+    # execute_expansions() materializes EVERY candidate's node/edges into dag_container.dag (it has
+    # to, to evaluate them), then marks non-viable ones metrics["skip"]=True -- but never removes
+    # their now-useless node/edges from the graph itself. Keep the full (pre-filter) list so
+    # clean_graph_with_chosen_action below can find and remove those too -- passing it the
+    # already-filtered list (skipped candidates missing) leaves their dead nodes permanently wired
+    # into the graph, silently corrupting every subsequent forward pass (caught by a smoke test:
+    # AssertionError comparing a node's recorded size against its actual, un-grown activity width;
+    # verified directly by instrumenting clean_graph_with_chosen_action -- the stray node is
+    # present in dag_container.dag.edges before this fix, gone after it).
+    all_considered_actions = restricted_actions
     restricted_actions = [a for a in restricted_actions if not a.metrics.get("skip", False)]
     if not restricted_actions:
         return False
@@ -455,10 +465,15 @@ def growth_step_for_dag(
     from gromo.modules.growing_module import GrowingModule
 
     mask = dag_container.chosen_action.create_mask()
+    # dag_container itself also needs its OWN leftover candidates cleaned up -- it was previously
+    # excluded here (only the other 3 dags got clean_graph_with_chosen_action called), on the
+    # assumption dag_container.apply_change() alone was sufficient. It isn't: apply_change() only
+    # applies the CHOSEN edge's changes, it never removes unchosen candidates' dead nodes/edges.
+    dag_container.clean_graph_with_chosen_action(all_considered_actions)
     for layer in model._growing_layers:
         if isinstance(layer, GrowingGraphNetwork) and layer is not dag_container:
             layer.chosen_action = dag_container.chosen_action
-            layer.clean_graph_with_chosen_action(restricted_actions)
+            layer.clean_graph_with_chosen_action(all_considered_actions)
         elif isinstance(layer, GrowingModule):
             layer.delete_update(
                 include_previous=False,
