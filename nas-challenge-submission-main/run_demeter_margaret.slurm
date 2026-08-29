@@ -1,8 +1,9 @@
 #!/bin/bash
 #
-# Run submission_demeter on the challenge benchmark datasets on margaret (SLURM), then copy the
-# results out to DEST_DIR. This does NOT run anything locally -- it's meant to be submitted with
-# `sbatch` from margaret itself (or from a login node with a synced copy of this repo).
+# Run submission_demeter on the challenge benchmark datasets on margaret (SLURM), leaving the
+# results under nas-challenge-submission-main/results/<name>/ on margaret's own filesystem. This
+# does NOT run anything locally -- it's meant to be submitted with `sbatch` from margaret itself
+# (or from a login node with a git clone of this repo).
 #
 # This is the FAST/APPROXIMATE run (DEMETER_FAST_RUN=1, ~4h total across all 5 datasets instead of
 # the paper's own ~50.6 GPU-hours -- see nas.py's set_metadata() for exactly what's cut). Purpose:
@@ -10,18 +11,18 @@
 # reproduce paper-quality final numbers. Set DEMETER_FAST_RUN=0 for the real, full-fidelity run.
 #
 # I (Claude) cannot submit or run this on margaret myself -- I have no access to that cluster.
-# This script just follows the same conventions as the existing *.slurm files in
-# experimental_grow-main/{hydra_script,experiments/pipeline}/ (conda activation via
-# miniconda3/etc/profile.d/conda.sh, --partition=tau, /home/tau/$USER/tau_frugal/$USER/logs
-# for SLURM's own stdout/stderr).
+# This script follows the same --partition=tau / /home/tau/$USER/tau_frugal/$USER/logs conventions
+# as the existing *.slurm files in experimental_grow-main/{hydra_script,experiments/pipeline}/, but
+# activates a plain Python venv (not conda) -- point VENV_DIR at one with
+# torch/torchvision/scikit-learn/numpy/Deprecated installed.
 #
 # Usage:
-#   1. rsync/scp this whole NAS/ folder (or at least nas-challenge-submission-main/) onto margaret.
-#   2. sbatch run_demeter_margaret.slurm
+#   1. git clone (or pull) this repo onto margaret -- see PROJECT_DIR below.
+#   2. sbatch --export=VENV_DIR=/path/to/your/venv run_demeter_margaret.slurm
 #      -- datasets/ is populated automatically on first run (margaret's compute nodes have
 #      internet access): the job fetches all 5 benchmark datasets straight from figshare if
 #      they're not already present. See the DATASETS block below for details / to skip this.
-#      (override any of the variables below via e.g. `sbatch --export=CONDA_ENV=myenv,DEST_DIR=/some/path ...`)
+#      (override any of the variables below the same way, e.g. `--export=VENV_DIR=...,SUBMISSION=...`)
 
 #SBATCH --job-name=demeter_benchmarks
 #SBATCH --partition=tau
@@ -44,14 +45,13 @@ PROJECT_DIR="${PROJECT_DIR:-$HOME/NAS}"
 # Which submission folder to run (must exist under $PROJECT_DIR/nas-challenge-submission-main/).
 SUBMISSION="${SUBMISSION:-submission_demeter}"
 
-# Conda environment with torch/torchvision/scikit-learn/numpy/Deprecated installed -- see the
+# Path to a plain Python venv (venv/virtualenv/uv venv -- anything with bin/activate) with
+# torch/torchvision/scikit-learn/numpy/Deprecated installed, e.g. ~/.venvs/demeter. See the
 # "install requirements" step below, which installs them into this env if missing.
-CONDA_ENV="${CONDA_ENV:?CONDA_ENV is required -- e.g. sbatch --export=CONDA_ENV=demeter run_demeter_margaret.slurm}"
+VENV_DIR="${VENV_DIR:?VENV_DIR is required -- e.g. sbatch --export=VENV_DIR=$HOME/.venvs/demeter run_demeter_margaret.slurm}"
 
-# Results (predictions/ + scoring output + the run log) are committed and pushed to this repo's
-# own GitHub remote under nas-challenge-submission-main/results/<RESULTS_NAME>/ instead of being
-# rsync'd to a shared filesystem path. Requires push access to the repo's remote configured on
-# margaret first -- see the "how to run this" instructions for the one-time SSH-key setup.
+# Results (predictions/ + scoring output + the run log) are left under
+# nas-challenge-submission-main/results/<RESULTS_NAME>/ on margaret's own filesystem.
 RESULTS_NAME="${RESULTS_NAME:-${SLURM_JOB_NAME:-demeter}_${SLURM_JOB_ID:-manual}_$(date +%Y%m%d_%H%M%S)}"
 RESULTS_DIR="results/${RESULTS_NAME}"
 
@@ -76,12 +76,11 @@ cd "$PROJECT_DIR/nas-challenge-submission-main"
 echo "Job id: ${SLURM_JOB_ID:-manual}"
 echo "Host: $(hostname)"
 echo "Submission: $SUBMISSION"
-echo "Results will be pushed to: nas-challenge-submission-main/$RESULTS_DIR"
+echo "Results will be left at: nas-challenge-submission-main/$RESULTS_DIR"
 nvidia-smi
 
 # ---- environment ----
-. "${HOME}/miniconda3/etc/profile.d/conda.sh"
-conda activate "$CONDA_ENV"
+source "$VENV_DIR/bin/activate"
 
 python -c "import torch, torchvision; print('torch', torch.__version__, 'torchvision', torchvision.__version__, 'cuda available:', torch.cuda.is_available())"
 
@@ -154,27 +153,11 @@ echo "Datasets ready: $(ls datasets)"
 # ---- run (Makefile: clean -> build -> run -> score) ----
 make submission="$SUBMISSION" all
 
-# ---- collect results onto disk first (so nothing is lost even if the git push below fails) ----
+# ---- collect results ----
 mkdir -p "$RESULTS_DIR"
 rsync -av package/predictions/ "$RESULTS_DIR/predictions/"
 [ -d scoring ] && rsync -av scoring/ "$RESULTS_DIR/scoring/"
 cp "/home/tau/${USER}/tau_frugal/${USER}/logs/slurm-${SLURM_JOB_NAME:-demeter_benchmarks}-${SLURM_JOB_ID:-manual}.out" \
    "$RESULTS_DIR/run.log" 2>/dev/null || true
 
-# ---- push results to GitHub instead of rsync-ing to a shared filesystem path ----
-# Requires push access to this repo's remote already set up on margaret (SSH key added to your
-# GitHub account, recommended over HTTPS+token for a non-interactive batch job) -- see the "how to
-# run this" instructions. Predictions/stats/log are small (label arrays + text, not training data)
-# and are explicitly un-ignored for nas-challenge-submission-main/results/ in .gitignore.
-git -C "$PROJECT_DIR" config user.email >/dev/null 2>&1 || \
-    git -C "$PROJECT_DIR" config user.email "amirouche.chabane.b2b@gmail.com"
-git -C "$PROJECT_DIR" config user.name >/dev/null 2>&1 || \
-    git -C "$PROJECT_DIR" config user.name "Amirouche Chabane"
-
-BRANCH="$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD)"
-git -C "$PROJECT_DIR" pull --rebase origin "$BRANCH"
-git -C "$PROJECT_DIR" add "nas-challenge-submission-main/$RESULTS_DIR"
-git -C "$PROJECT_DIR" commit -m "margaret run: $RESULTS_NAME ($SUBMISSION, DEMETER_FAST_RUN=${DEMETER_FAST_RUN})"
-git -C "$PROJECT_DIR" push origin "$BRANCH"
-
-echo "Done. Results pushed to nas-challenge-submission-main/$RESULTS_DIR on branch $BRANCH."
+echo "Done. Results left at nas-challenge-submission-main/$RESULTS_DIR"
