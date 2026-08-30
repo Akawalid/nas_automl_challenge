@@ -131,11 +131,14 @@ class NAS:
             set_device(torch.device("cpu"))
         self.device = global_device()
 
-        # metadata['input_shape'] is (N, C, H, W) -- verified against the actual competition data
-        # (e.g. Chesseract's real train_x.npy header is (49998, 12, 8, 8): 12 is unambiguously the
-        # channel count, not a spatial dim). See data_processor.py's TorchDataset for the matching
-        # fix on the raw-array side.
-        channels, height, width = self.metadata["input_shape"][1:]
+        # Don't trust metadata['input_shape'] for the spatial dims -- it can be stale/wrong
+        # relative to the real data (caught on margaret: GeoClassing's metadata declares
+        # [50000,3,64,64] but its real train_x.npy is actually (43821,3,60,60) -- confirmed by
+        # reading the raw .npy header directly, a genuine inconsistency in the dataset's own
+        # published metadata, not something introduced here). Deriving channels/height/width from
+        # an actual batch instead is robust to this regardless of which dataset's metadata is off.
+        sample_x, _ = next(iter(self.train_loader))
+        _, channels, height, width = sample_x.shape
         out_features = self.metadata["num_classes"]
 
         loss_fn = torch.nn.CrossEntropyLoss()

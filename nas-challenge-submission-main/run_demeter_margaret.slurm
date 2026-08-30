@@ -25,6 +25,8 @@
 #      internet access): the job fetches all 5 benchmark datasets straight from figshare if
 #      they're not already present. See the DATASETS block below for details / to skip this.
 #      (override any of the variables below the same way, e.g. `--export=VENV_DIR=...,SUBMISSION=...`)
+#      -- to skip datasets a previous run already completed, add e.g.
+#      `DATASETS_TO_RUN="GeoClassing Gutenberg MultNIST"` (folder names, not codenames)
 
 #SBATCH --job-name=demeter_benchmarks
 #SBATCH --partition=tau
@@ -56,6 +58,13 @@ VENV_DIR="${VENV_DIR:?VENV_DIR is required -- e.g. sbatch --export=VENV_DIR=$HOM
 # nas-challenge-submission-main/results/<RESULTS_NAME>/ on margaret's own filesystem.
 RESULTS_NAME="${RESULTS_NAME:-${SLURM_JOB_NAME:-demeter}_${SLURM_JOB_ID:-manual}_$(date +%Y%m%d_%H%M%S)}"
 RESULTS_DIR="results/${RESULTS_NAME}"
+
+# Which dataset folders (under datasets/) main.py should actually process this run -- space
+# separated, matching the folder names in DATASET_IDS below (not the internal 'codename' field
+# printed in logs, e.g. use "GeoClassing" not "Sadie"). Defaults to all 5. Narrow this to just the
+# ones you still need after a previous run already completed some of them -- main.py has no notion
+# of "already done", it just reprocesses whatever it finds in datasets/ from scratch every time.
+DATASETS_TO_RUN="${DATASETS_TO_RUN:-MultNIST CIFARTile Gutenberg GeoClassing Chesseract}"
 
 # Turns on nas.py's fast/approximate hyperparameter profile (~10x fewer epochs on the 3 knobs that
 # dominate wall-clock, plus a tighter round cap) -- see nas.py's set_metadata() for exactly what
@@ -158,8 +167,19 @@ for name in "${!DATASET_IDS[@]}"; do
 done
 echo "Datasets ready: $(ls datasets)"
 
-# ---- run (Makefile: clean -> build -> run -> score) ----
-make submission="$SUBMISSION" all
+# ---- run (Makefile: clean -> build, then prune to DATASETS_TO_RUN, then run -> score) ----
+make submission="$SUBMISSION" clean build
+
+echo "Pruning package/datasets/ to just: $DATASETS_TO_RUN"
+for d in package/datasets/*/; do
+    name="$(basename "$d")"
+    if [[ ! " $DATASETS_TO_RUN " == *" $name "* ]]; then
+        rm -rf "$d"
+    fi
+done
+echo "Will actually run: $(ls package/datasets)"
+
+make submission="$SUBMISSION" run score
 
 # ---- collect results ----
 mkdir -p "$RESULTS_DIR"
