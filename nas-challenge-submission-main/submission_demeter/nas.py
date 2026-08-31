@@ -207,6 +207,31 @@ class NAS:
             return val_acc
 
         start_time = time()
+
+        # [WHEN] train the freshly-constructed seed model first, matching pipeline.py's real step
+        # order exactly (`create_model` -> `train`, BEFORE the growth loop even starts -- traced
+        # directly from the reference source, not inferred). Growth decisions below are entirely
+        # gradient-based; deciding where/how much to grow from an untrained, randomly-initialized
+        # model's gradients would be close to noise. This was previously missing entirely.
+        seed_train_loader = DataLoader(growth_pool, batch_size=self.metadata["train_batch_size"], shuffle=True)
+        train_with_early_stopping(
+            model=model,
+            train_loader=seed_train_loader,
+            val_loader=val_loader,
+            loss_fn=loss_fn,
+            aux_loss_fn=top_1_accuracy,
+            device=self.device,
+            epochs=self.metadata["train_epochs"],
+            lr=self.metadata["train_lr"],
+            weight_decay=self.metadata["train_weight_decay"],
+            eps=self.metadata["train_eps"],
+            eta_min=self.metadata["train_eta_min"],
+            es_abs_delta=self.metadata["es_abs_delta"],
+            es_patience=self.metadata["es_patience"],
+            grad_clip=self.metadata["train_grad_clip"],
+        )
+        maybe_checkpoint()
+
         round_idx = 0
         while any(s < self.metadata["dag_freeze_strikes"] for s in strikes.values()) and round_idx < self.metadata["max_rounds"]:
             round_idx += 1
@@ -215,29 +240,17 @@ class NAS:
                     continue
 
                 round_start = time()
-                train_loader = DataLoader(growth_pool, batch_size=self.metadata["train_batch_size"], shuffle=True)
 
-                # [WHEN] train the whole network with early stopping
-                train_with_early_stopping(
-                    model=model,
-                    train_loader=train_loader,
-                    val_loader=val_loader,
-                    loss_fn=loss_fn,
-                    aux_loss_fn=top_1_accuracy,
-                    device=self.device,
-                    epochs=self.metadata["train_epochs"],
-                    lr=self.metadata["train_lr"],
-                    weight_decay=self.metadata["train_weight_decay"],
-                    eps=self.metadata["train_eps"],
-                    eta_min=self.metadata["train_eta_min"],
-                    es_abs_delta=self.metadata["es_abs_delta"],
-                    es_patience=self.metadata["es_patience"],
-                    grad_clip=self.metadata["train_grad_clip"],
-                )
-                val_acc = maybe_checkpoint()
-
-                # One whole-model forward-backward pass on a fresh optimization/development
-                # resplit (Appendix C) feeds both the freeze check and the growth step below.
+                # [WHERE/HOW MUCH] gather statistics on the CURRENT model -- already trained, via
+                # either the seed-training pass above or the previous dag-visit's trailing training
+                # below -- decide whether to freeze or grow, and apply the growth action, all
+                # BEFORE this visit's own training call. Matches pipeline.py's real step order
+                # exactly (define_growth_actions ... apply_change all precede `train` in its
+                # per-global_step pipeline list). The previous train-then-grow order here left
+                # every dag's newly-grown, still-near-zero-initialized weights (outgoing_init:
+                # zeros) completely untrained until that same dag's NEXT visit, instead of settling
+                # in via a training pass immediately after growing, before any other dag's growth
+                # decision (or a checkpoint snapshot) ever saw them.
                 optimization, development = resplit_optimization_development(
                     growth_pool, opt_fraction=self.metadata["optimization_fraction"]
                 )
@@ -265,12 +278,6 @@ class NAS:
                 else:
                     strikes[name] = 0
 
-                print(
-                    "round {:>3} [{}] | Valid Acc: {:>6.2f}% | strikes={} | T/round: {:<7} |".format(
-                        round_idx, name, val_acc * 100, strikes[name], show_time(time() - round_start)
-                    )
-                )
-
                 grew = False
                 if strikes[name] < self.metadata["dag_freeze_strikes"]:
                     grew = growth_step_for_dag(
@@ -283,12 +290,36 @@ class NAS:
                         neuron_selection_threshold=self.metadata["neuron_selection_threshold"],
                         device=self.device,
                     )
-                # Reset BEFORE checkpointing: compute_optimal_delta() above left transient
-                # optimal_delta_layer submodules attached; snapshotting while they're still there
-                # would carry that transient state into the checkpoint for no reason.
+                # Reset BEFORE training: compute_optimal_delta() above left transient
+                # optimal_delta_layer submodules attached; training with them still attached would
+                # double-apply that delta on top of the optimizer's own updates.
                 model.reset_computation()
-                if grew:
-                    maybe_checkpoint()
+
+                # [WHEN] train the (possibly just-grown) model
+                train_loader = DataLoader(growth_pool, batch_size=self.metadata["train_batch_size"], shuffle=True)
+                train_with_early_stopping(
+                    model=model,
+                    train_loader=train_loader,
+                    val_loader=val_loader,
+                    loss_fn=loss_fn,
+                    aux_loss_fn=top_1_accuracy,
+                    device=self.device,
+                    epochs=self.metadata["train_epochs"],
+                    lr=self.metadata["train_lr"],
+                    weight_decay=self.metadata["train_weight_decay"],
+                    eps=self.metadata["train_eps"],
+                    eta_min=self.metadata["train_eta_min"],
+                    es_abs_delta=self.metadata["es_abs_delta"],
+                    es_patience=self.metadata["es_patience"],
+                    grad_clip=self.metadata["train_grad_clip"],
+                )
+                val_acc = maybe_checkpoint()
+
+                print(
+                    "round {:>3} [{}] | Valid Acc: {:>6.2f}% | strikes={} | grew={} | T/round: {:<7} |".format(
+                        round_idx, name, val_acc * 100, strikes[name], grew, show_time(time() - round_start)
+                    )
+                )
 
         print(f"All DAGs frozen after {round_idx} rounds ({show_time(time() - start_time)})")
 

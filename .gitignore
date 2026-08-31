@@ -60,6 +60,17 @@ using_extra_packages/**/*.tar.gz
 
 experimental_grow-main/
 
+# === Except: one new script added this project (not part of Florido's original repo) -- a
+# directory-level ignore like the one above blocks a plain file negation, so each directory level
+# down to the file has to be un-ignored in turn (git's own documented behavior for this case) ===
+!/experimental_grow-main/
+/experimental_grow-main/*
+!/experimental_grow-main/experiments/
+/experimental_grow-main/experiments/*
+!/experimental_grow-main/experiments/pipeline/
+/experimental_grow-main/experiments/pipeline/*
+!/experimental_grow-main/experiments/pipeline/run_original_cifartile_margaret.slurm
+
 # === nas-challenge-submission-main build artifacts (Makefile: build/run/score) and downloaded
 # benchmark data (the multi-hundred-MB train/valid/test .npy arrays fetched by
 # run_demeter_margaret.slurm) -- all regenerable, never worth tracking ===
