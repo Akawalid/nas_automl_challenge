@@ -179,7 +179,26 @@ for d in package/datasets/*/; do
 done
 echo "Will actually run: $(ls package/datasets)"
 
-make submission="$SUBMISSION" run score
+make submission="$SUBMISSION" run
+
+# ---- score (Makefile's `score` target, inlined so labels/ can be pruned the same way as
+# package/datasets/ above -- otherwise score.py hits a dataset with labels but no matching
+# predictions [pruned out] and crashes ("list index out of range") before scoring any of the
+# datasets that actually ran, since it never skips missing ones gracefully) ----
+rm -Rf scoring
+mkdir scoring
+mkdir scoring/labels
+mkdir scoring/predictions
+rsync -avr --exclude='**/*x.npy' --exclude='**/train*.npy' --exclude='**/valid*.npy' --include='**/test_y.npy' datasets/* scoring/labels/
+for d in scoring/labels/*/; do
+    name="$(basename "$d")"
+    if [[ ! " $DATASETS_TO_RUN " == *" $name "* ]]; then
+        rm -rf "$d"
+    fi
+done
+cp -R package/predictions scoring
+cp evaluation/score.py scoring/score.py
+cd scoring; python3 score.py; cd ..
 
 # ---- collect results ----
 mkdir -p "$RESULTS_DIR"

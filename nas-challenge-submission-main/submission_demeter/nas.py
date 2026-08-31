@@ -118,7 +118,7 @@ class NAS:
         # already noted above) as a safety net. Every knob governing WHICH growth decisions get
         # made (candidate_neurons, bottleneck_samples, thresholds, batch sizes) is left untouched,
         # so the growth trajectory itself should still resemble real Demeter, just compressed.
-        if os.environ.get("DEMETER_FAST_RUN"):
+        if os.environ.get("DEMETER_FAST_RUN", "0").strip().lower() not in ("0", "", "false"):
             self.metadata.update({
                 "train_epochs": 10,
                 "candidate_neuron_epochs": 10,
