@@ -1,0 +1,116 @@
+experiment:
+  name: pipeline-from-scratch
+  seed: 0
+
+dataset:
+  name: multnist
+  path: data
+  shuffle: true
+  val_split: 0.3
+  dev_split: 0.4
+  augment: true
+
+model:
+  class: cell_arch.CellArchitecture
+  init_hidden_channels: 10
+  hidden_features: 50
+  use_layer_norm: true
+  use_batch_norm: false
+  use_group_norm: false
+  group_norm_num_groups: 1
+  ema: true
+  model_path: stella_douka-personal/Strategies-MultNIST-scalar/cell_arch.CellArchitecture_after_growth_4eo9hd4j:10
+  artifact_path:
+    - stella_douka-personal/Strategies-MultNIST-scalar/graph_dag1_4eo9hd4j:10
+    - stella_douka-personal/Strategies-MultNIST-scalar/graph_dag2_4eo9hd4j:10
+    - stella_douka-personal/Strategies-MultNIST-scalar/graph_dag3_4eo9hd4j:10
+    - stella_douka-personal/Strategies-MultNIST-scalar/graph_dag4_4eo9hd4j:10
+  load_weights: false
+
+logger:
+  api: wandb
+  exp_name: Strategies-MultNIST-scalar
+  port: 27028
+  enabled: true
+  path: logs
+  tmpdir: temp
+  save_intermediate_models: true
+
+training:
+  epochs: 150
+  epoch_scaling: 0.0
+  batch_size: 64
+  device: cuda
+  loss_function: torch.nn.CrossEntropyLoss
+  label_smoothing: 0.0
+  lrate: 0.01
+  weight_decay: 0.0001
+  momentum: 0.9
+  eps: 0.0001
+  optimizer: torch.optim.SGD
+  grad_clip: null
+  scheduler: tools.lr_scheduler.WarmupCosineAnnealingLR
+  eta_min: 0.00001
+  ablations:
+    linear_warmup:
+      enabled: false
+      epochs: 10
+    global_scheduler:
+      enabled: false
+      total_epochs: 350
+      rebind_linear_warmup:
+        enabled: false
+        epochs: 10
+    post_growth_scheduler:
+      enabled: false
+      growth_linear_warmup:
+        enabled: false
+        epochs: 10
+    sgd_momentum_transfer:
+      enabled: false
+  warmup_epochs: 10
+  warmup_start_lr: 0.00001
+  early_stopping: false
+  es_abs_delta: 0.005
+  es_patience: 5
+
+growth:
+  steps: 60
+  batch_size: 64
+  max_activities_size: 2048
+  neurons: 100
+  neuron_scaling: 0.0
+  neuron_selection_threshold: 0.00028
+  neuron_epochs: 100
+  neuron_lrate: 0.001
+  neuron_batch_size: 256
+  dependency_estimation_sample_size: 1000
+  use_first_order_improvement: true
+  du_threshold: 0.00122
+  initialization_strategy: local
+  use_line_search: true
+  fixed_scaling_factor: 1.0
+  disable_optimal_delta_on_apply_change: false
+  incoming_init: kaiming
+  outgoing_init: zeros
+  new_edge_init: zeros
+  # Init/scaling ablation profile:
+  # initialization_strategy: init_scaling_ablation
+
+pipeline:
+  - load_data
+  - split_data
+  - create_dataloaders
+  - set_global_device
+  - load_model
+  - train
+  # - evaluate_and_log
+  - save_model
+  - empty_cache
+  # - loop:
+  #     var: global_step
+  #     over: ${growth.steps}
+  #     steps:
+  #       # - log_results
+  #       - save_model
+  #       - empty_cache

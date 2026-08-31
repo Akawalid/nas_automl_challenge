@@ -1,0 +1,37 @@
+defaults:
+  - config
+  - override dataset_config: cifar10
+  - override early_stopping: no_early_stopping
+  - override general: default
+  - override growing: fogro
+  - override growing/normalization: none
+  - override hydra: custom_paths
+  - override line_search: default
+  - override loss: cross_entropy_label_smoothing_0_1
+  - override lr_scheduler: cct_cosine_warmup_300
+  - override metric: multiclass_accuracy
+  - override mlflow: iceberg
+  - override model: growing_cct_7_3x1_32
+  - override optimizer: adamw_cct
+  - override schedule: cct7_300steps
+  - _self_
+
+mlflow:
+  experiment_name: "growing_cct_cifar10"
+  run_name: "cct7_3x1_fogro"
+
+general:
+  batch_size: 128
+  num_workers: 8
+  seed: 0
+  amp: true  # Mixed precision, matching the CCT `amp: true` recipe.
+  filter_bias_and_norm: true  # No weight decay on bias/LayerNorm (timm filter_bias_and_bn).
+
+dataset_config:
+  split_train_val: 0.0
+
+growing:
+  batch_limit: 40
+
+schedule:
+  num_layers: 7

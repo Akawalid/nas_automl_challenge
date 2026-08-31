@@ -1,0 +1,9 @@
+# General settings
+device: cuda
+generate_schedule: true
+num_workers: 4
+seed: 0  # If null, a random seed will be generated
+batch_size: 128
+amp: false  # Mixed-precision (AMP) training. Only effective on CUDA. Matches timm's `amp` flag.
+filter_bias_and_norm: false  # If true, exclude bias and norm (1-D) params from weight decay (timm's `filter_bias_and_bn`).
+torch_backends_cuda_preferred_linalg_library: Default  # Options: Magma, Default, Cusolver

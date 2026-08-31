@@ -1,0 +1,6 @@
+# MLflow parameters
+
+experiment_name: "debug"
+tracking_uri: "file:./mlruns"
+run_name: null  # null = auto-generate
+log_system_metrics: true

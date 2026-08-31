@@ -1,0 +1,2 @@
+model: true_resnet
+resnet_name: resnet18

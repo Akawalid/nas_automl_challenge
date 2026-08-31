@@ -1,0 +1,7 @@
+# Constant learning rate (no scheduling)
+
+scheduler_step_granularity: epoch
+scheduler_object:
+  _target_: torch.optim.lr_scheduler.ConstantLR
+  factor: 1.0
+  total_iters: 0

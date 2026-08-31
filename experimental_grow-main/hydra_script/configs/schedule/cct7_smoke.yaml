@@ -1,0 +1,8 @@
+num_layers: 7
+layer_order: null
+epochs_between_growth: 0.02
+growth_steps_per_layer: 1
+growth_size: [4]
+training_steps_after_growth: 1
+output_file: "debug_cct7_schedule.txt"
+include_completion_step: false

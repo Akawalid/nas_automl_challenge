@@ -1,0 +1,4 @@
+# model_config.yaml
+model: resnet
+number_of_blocks_per_stage: 2
+reduction_factor: 1

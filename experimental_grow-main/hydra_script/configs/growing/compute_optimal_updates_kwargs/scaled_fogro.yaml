@@ -1,0 +1,10 @@
+numerical_threshold: 1e-6
+statistical_threshold: 1e-3
+maximum_added_neurons: null
+dtype: torch.float32
+compute_delta: True
+use_covariance: True
+alpha_zero: False
+omega_zero: False
+use_projection: True
+ignore_singular_values: True

@@ -1,0 +1,18 @@
+defaults:
+  - config
+  - override dataset_config: cifar100
+  - override early_stopping: accuracy
+  - override general: default
+  - override growing: none
+  - override growing/normalization: none
+  - override line_search: default
+  - override lr_scheduler: constant
+  - override mlflow: iceberg
+  - override model: resnet18_full
+  - override optimizer: sgd
+  - override schedule: classic
+  - _self_
+
+mlflow:
+  experiment_name: "baseline"
+  run_name: "full_resnet"

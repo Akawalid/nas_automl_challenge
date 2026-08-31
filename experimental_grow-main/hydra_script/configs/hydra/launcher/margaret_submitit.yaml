@@ -1,0 +1,26 @@
+# @package hydra.launcher
+_target_: hydra_plugins.hydra_submitit_launcher.submitit_launcher.SlurmLauncher
+submitit_folder: "${hydra.sweep.dir}/.submitit/%j"
+partition: tau
+gpus_per_node: 1
+nodes: 1
+timeout_min: 1440
+cpus_per_task: 5
+exclude: margpu024,margpu025,margpu026,margpu027,margpu029
+tasks_per_node: 1
+name: "${hydra.job.name}"
+comment: "titanic submitit launcher"
+qos: null
+constraint: null
+gres: gpu:1
+cpus_per_gpu: null
+gpus_per_task: null
+mem_per_gpu: null
+mem_per_cpu: null
+account: null
+signal_delay_s: 120
+max_num_timeout: 0
+additional_parameters: {}
+array_parallelism: 256
+setup: null
+srun_args: null

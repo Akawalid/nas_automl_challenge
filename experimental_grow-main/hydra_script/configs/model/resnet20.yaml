@@ -1,0 +1,6 @@
+defaults:
+  - resnet20_full
+  - _self_
+
+
+reduction_factor: 0.125 # 1/8

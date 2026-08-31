@@ -1,0 +1,48 @@
+defaults:
+  - config
+  - override dataset_config: cifar10
+  - override early_stopping: no_early_stopping
+  - override general: default
+  - override growing: gradmax
+  - override hydra/launcher: margaret_submitit
+  - override line_search: default
+  - override lr_scheduler: cosine
+  - override mlflow: iceberg
+  - override model: vgg11
+  - override optimizer: sgd_nesterov
+  - override schedule: default
+  - _self_
+
+growing:
+  normalize_weights: false
+  planned_growing_steps: 12
+
+hydra:
+  sweeper:
+    params:
+      general.seed: range(3)
+
+lr_scheduler:
+  total_epochs: 200
+
+mlflow:
+  experiment_name: "gradmax"
+  tracking_uri: "${oc.env:HOME}/growgro/experimental_grow/logs/gradmax/mlflow"
+  run_name: "VGG-11"
+
+model:
+  reduction_factor: 0.25
+  activation: relu_derivative_one_at_zero
+
+optimizer:
+  lr: 0.05
+  momentum: 0.9
+  weight_decay: 2e-4
+
+schedule:
+  # One global growth (-1) per outer repeat
+  layer_order: [-1]
+  growth_warmup_steps: 28
+  epochs_between_growth: 6.4
+  growth_steps_per_layer: 12
+  training_steps_after_growth: 95

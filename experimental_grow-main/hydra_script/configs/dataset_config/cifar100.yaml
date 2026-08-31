@@ -1,0 +1,73 @@
+# CIFAR-100 dataset configuration
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+
+name: cifar100
+num_classes: 100
+
+# --- Mixup / CutMix recipe (timm / Compact-Transformers cct_7-3x1 CIFAR-100) ---
+# Applied at the batch level by `gradient_descent_mixup` (see
+# `experiments/auxilliary_functions.py`). Equivalent to timm's
+# `mixup: 0.8`, `cutmix: 1.0`, `mixup_prob: 1.0`, `mixup_switch_prob: 0.5`,
+# `mixup_off_epoch: 0`. Unlike CIFAR-10, the CIFAR-100 recipe keeps Mixup/CutMix
+# on for the whole run (`mixup_off_epoch: 0` = never disabled).
+mixup_alpha: 0.8
+cutmix_alpha: 1.0
+mixup_prob: 1.0
+mixup_switch_prob: 0.5
+mixup_off_epoch: 0  # 0 = Mixup/CutMix stay enabled for all epochs (timm parity).
+
+dataset:
+  _target_: torchvision.datasets.CIFAR100
+  root: ${dataset_config.path}
+  download: true
+
+sources:
+  train:
+    extra_args:
+      train: true
+  test:
+    extra_args:
+      train: false
+
+transforms:
+  standard:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: torchvision.transforms.Normalize
+        mean: [0.5071, 0.4867, 0.4408]
+        std: [0.2675, 0.2565, 0.2761]
+  # Exact reproduction of the timm training pipeline used by Compact-Transformers
+  # (cct_7-3x1_cifar100): RandomResizedCropAndInterpolation(scale 0.8-1.0,
+  # interpolation=random) -> HFlip -> RandAugment(rand-m9-mstd0.5-inc1) ->
+  # ToTensor -> Normalize -> RandomErasing(prob 0.25, mode=pixel). Uses timm's own
+  # transforms so the augmentation matches bit-for-bit (requires `timm`). Unlike
+  # CIFAR-10, the CIFAR-100 recipe enables Random Erasing (reprob=0.25).
+  augmented:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: timm.data.transforms.RandomResizedCropAndInterpolation
+        size: 32
+        scale: [0.8, 1.0]
+        ratio: [0.75, 1.3333333333333333]
+        interpolation: random
+      - _target_: torchvision.transforms.RandomHorizontalFlip
+      - _target_: tools.augmentations.cct_rand_augment_transform
+        config_str: rand-m9-mstd0.5-inc1
+        translate_const: 14  # int(min(img_size) * 0.45) for 32x32
+        img_mean: [129, 124, 112]  # round(255 * mean); coerced to tuple for PIL fill
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: torchvision.transforms.Normalize
+        mean: [0.5071, 0.4867, 0.4408]
+        std: [0.2675, 0.2565, 0.2761]
+      - _target_: timm.data.random_erasing.RandomErasing
+        probability: 0.25
+        mode: pixel
+        max_count: 1
+        num_splits: 0
+        device: cpu

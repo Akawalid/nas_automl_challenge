@@ -63,7 +63,7 @@ VENV_PATH="${VENV_PATH:?VENV_PATH is required}"
 # Where the dataset gets auto-downloaded to/read from (figshare zip + extracted dir, NOT the
 # challenge-format .npy layout submission_demeter uses -- this is intentional, it's Florido's own
 # native dataset loader, unmodified).
-DATA_DIR="${DATA_DIR:-$PROJECT_DIR/original_pipeline_data}"
+DATA_DIR="${DATA_DIR:-$PROJECT_DIR/data}"
 
 SEED="${SEED:-0}"
 

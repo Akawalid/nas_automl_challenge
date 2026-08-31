@@ -1,0 +1,6 @@
+
+
+experiment_name: "debug"
+tracking_uri: "sqlite:///${oc.env:HOME}/tau_frugal/${oc.env:USER}/mlflow/mlflow.db"
+run_name: null  # null = auto-generate
+log_system_metrics: true

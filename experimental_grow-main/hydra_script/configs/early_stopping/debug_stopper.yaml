@@ -1,0 +1,8 @@
+
+metric_name: "val_accuracy"
+reset_on_growth_step: false
+early_stopping_object:
+  _target_: hydra_script.aux_train_and_grow.EarlyStopping
+  patience: 1
+  min_delta: 1.0
+  mode: "max"

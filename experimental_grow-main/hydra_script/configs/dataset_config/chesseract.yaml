@@ -1,0 +1,28 @@
+# Chesseract (NAS small benchmark) — NCL Figshare .npy bundle via tools.datasets.Chesseract
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+name: chesseract
+num_classes: 3
+
+dataset:
+  _target_: tools.datasets.Chesseract
+  root: ${dataset_config.path}
+  download: true
+
+sources:
+  train:
+    extra_args:
+      train: true
+  test:
+    extra_args:
+      train: false
+
+transforms:
+  standard:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor

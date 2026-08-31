@@ -1,0 +1,5 @@
+output_file: "debug_schedule.txt"
+growth_steps_per_layer: 1
+growth_size: [3, 3, 3]
+training_steps_after_growth: 3
+epochs_between_growth: 1

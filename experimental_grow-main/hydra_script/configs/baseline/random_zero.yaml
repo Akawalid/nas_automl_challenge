@@ -1,0 +1,13 @@
+# @package _global_
+defaults:
+  - override /early_stopping: accuracy
+  - override /growing: random_zeros
+  - override /line_search: default
+  - override /lr_scheduler: constant
+  - override /mlflow: iceberg
+  - override /model: resnet18
+  - override /optimizer: sgd
+  - override /schedule: default
+
+mlflow:
+  run_name: "random_zeros"

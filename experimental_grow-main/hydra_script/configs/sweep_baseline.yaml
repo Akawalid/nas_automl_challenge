@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+  - config
+  - override hydra/launcher: titanic_submitit
+  - _self_
+
+mlflow:
+  experiment_name: "baseline"
+
+hydra:
+  sweeper:
+    params:
+      +baseline: full_resnet,random_zero,fogro
+      general.seed: range(5)

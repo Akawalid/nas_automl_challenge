@@ -1,0 +1,5 @@
+defaults:
+  - wrn28_1_dropout
+  - _self_
+
+reduction_factor: 1

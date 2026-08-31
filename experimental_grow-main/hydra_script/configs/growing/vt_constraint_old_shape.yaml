@@ -1,0 +1,13 @@
+method: random  # Options: fogro, random
+skip_compute_statistics: true
+
+planned_growing_steps: ${schedule.growth_steps_per_layer}
+
+# Output extension initialization
+output_extension_init: kaiming  # Options: zeros, copy_uniform, kaiming
+input_extension_init: kaiming  # Options: zeros, copy_uniform, kaiming
+
+# Neuron pairing and rescaling (variance transfer)
+neuron_pairing: vv_z_negz  # (V,V)/(Z,-Z) pairing for function preservation
+rescaling: vt_constraint_old_shape  # Strategy B: target V[W]=1/fan_in_old via weight statistics
+noise_ratio: 0.001  # Symmetry-breaking noise for neuron pairing

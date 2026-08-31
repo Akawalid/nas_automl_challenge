@@ -1,0 +1,5 @@
+output_file: null  # Path to save schedule (null = don't save)
+growth_steps_per_layer: 4
+growth_size: [5, 5, 5]
+training_steps_after_growth: 0
+epochs_between_growth: 0

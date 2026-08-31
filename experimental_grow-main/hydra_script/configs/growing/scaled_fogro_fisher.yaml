@@ -1,0 +1,34 @@
+defaults:
+  - normalization: match_extending_layer
+  - compute_optimal_updates_kwargs: scaled_fogro_fisher
+
+method: fogro  # Options: fogro, random
+skip_compute_statistics: false
+separate_growth_and_train_set: false
+batch_limit: 40  # Maximum number of batches for statistics (-1 = all)
+normalize_weights: false
+planned_growing_steps: ${schedule.growth_steps_per_layer}
+
+# Output extension initialization
+output_extension_init: copy_uniform  # Options: zeros, copy_uniform, kaiming
+input_extension_init: zeros  # Options: zeros, copy_uniform, kaiming
+
+# Neuron pairing and rescaling (variance transfer)
+neuron_pairing: null  # null or "vv_z_negz"
+rescaling: vt_constraint_new_shape  # null, "default_vt", "vt_constraint_old_shape", "vt_constraint_new_shape"
+noise_ratio: 0.001  # Symmetry-breaking noise for neuron pairing
+
+# scaled_fogro-specific knobs ------------------------------------------------
+# Step size for the optimal delta. Overloaded:
+#   false / null  -> no fixed step (delta participates in line search)
+#   true          -> use the optimizer's current learning rate
+#   numeric       -> use that value verbatim
+fixed_delta_gamma: true
+# How the input/output extension scalings are chosen. One of:
+#   lr_input_only            -> input = lr, output = 1, no line search
+#   line_search_input_only   -> input found by line search, output = 1
+#   line_search_both         -> input = output, both found by line search
+# Combined with `fixed_delta_gamma`, the supported pairs are
+# (true, lr_input_only), (true, line_search_input_only),
+# (true, line_search_both), (false, line_search_both).
+extension_scaling: lr_input_only

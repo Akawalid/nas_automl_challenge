@@ -1,0 +1,14 @@
+name: dry-ricker
+path: "${oc.env:HOME}/datasets/Dry_Ricker/"
+fmin: 1
+fmax: 40
+window_size: 0.35
+sample_freq: 500
+fps: 60
+timewise: time_sample
+n_class: 5
+ncal : 4
+participant: "P1"
+pretrain: False
+split_train_val: 0.05  # hardcoded validation split
+balanced_accuracy: true

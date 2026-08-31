@@ -1,0 +1,32 @@
+# MNIST dataset configuration
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+name: mnist
+num_classes: 10
+cutmix_prob: 0.0
+
+dataset:
+  _target_: torchvision.datasets.MNIST
+  root: ${dataset_config.path}
+  download: true
+
+sources:
+  train:
+    extra_args:
+      train: true
+  test:
+    extra_args:
+      train: false
+
+transforms:
+  standard:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: torchvision.transforms.Normalize
+        mean: [0.1307]
+        std: [0.3081]

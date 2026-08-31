@@ -1,0 +1,5 @@
+defaults:
+  - resnet18_full
+  - _self_
+
+skip_first_downsample: null

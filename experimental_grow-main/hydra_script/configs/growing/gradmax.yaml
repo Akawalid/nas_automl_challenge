@@ -1,0 +1,14 @@
+defaults:
+  - normalization: gradmax_normalization
+  - compute_optimal_updates_kwargs: gradmax
+
+method: fogro  # Options: fogro, random
+skip_compute_statistics: false
+separate_growth_and_train_set: false
+batch_limit: 1  # Maximum number of batches for statistics (-1 = all)
+normalize_weights: false
+planned_growing_steps: 10
+
+# Output extension initialization
+output_extension_init: copy_uniform  # Options: zeros, copy_uniform
+input_extension_init: zeros  # Options: zeros, random

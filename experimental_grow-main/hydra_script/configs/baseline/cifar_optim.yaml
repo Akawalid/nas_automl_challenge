@@ -1,0 +1,8 @@
+defaults:
+  - override /lr_scheduler: cosine_annealing
+  - override /optimizer: sgd
+
+optimizer:
+  momentum: 0.9
+  weight_decay: 5e-4
+  lr: 0.1

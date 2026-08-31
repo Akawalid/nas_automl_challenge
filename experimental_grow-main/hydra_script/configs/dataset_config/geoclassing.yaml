@@ -1,0 +1,40 @@
+# GeoClassing (NAS small benchmark) — NCL Figshare .npy bundle via tools.datasets.GeoClassing
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+name: geoclassing
+num_classes: 10
+
+dataset:
+  _target_: tools.datasets.GeoClassing
+  root: ${dataset_config.path}
+  download: true
+
+sources:
+  train:
+    extra_args:
+      train: true
+  test:
+    extra_args:
+      train: false
+
+transforms:
+  standard:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+  augmented:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: torchvision.transforms.RandomHorizontalFlip
+      - _target_: torchvision.transforms.RandomVerticalFlip
+      - _target_: tools.augmentations.RandomRot90
+      - _target_: torchvision.transforms.RandomErasing
+        p: 0.5
+        scale: [0.02, 0.2]
+        ratio: [1.0, 1.0]
+        value: 0

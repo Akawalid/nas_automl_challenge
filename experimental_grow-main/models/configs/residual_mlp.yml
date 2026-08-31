@@ -1,0 +1,6 @@
+# residual_mlp.yaml
+model: residual_mlp
+num_features: 32
+hidden_features: 8
+num_blocks: 1
+activation: relu

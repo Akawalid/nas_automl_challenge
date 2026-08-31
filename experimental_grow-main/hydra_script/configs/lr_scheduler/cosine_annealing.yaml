@@ -1,0 +1,6 @@
+
+scheduler_step_granularity: epoch
+scheduler_object:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: 200
+  eta_min: 1e-6

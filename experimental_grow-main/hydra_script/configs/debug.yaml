@@ -1,0 +1,25 @@
+defaults:
+  - config
+  - override growing: fogro
+  - override model: resnet_mini
+  - override dataset_config: mnist
+  - override schedule: minimal
+  - _self_
+
+
+mlflow:
+  experiment_name: "debug"
+  run_name: "debug_run"
+
+
+growing:
+  batch_limit: 10
+
+schedule:
+  include_completion_step: true
+  layer_order: [1, 0, 2]
+  growth_size: null
+
+early_stopping:
+  early_stopping_object:
+    patience: 10

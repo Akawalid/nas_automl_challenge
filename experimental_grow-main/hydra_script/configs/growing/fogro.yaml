@@ -1,0 +1,19 @@
+defaults:
+  - normalization: none
+  - compute_optimal_updates_kwargs: fogro
+
+method: fogro  # Options: fogro, random
+skip_compute_statistics: false
+separate_growth_and_train_set: false
+batch_limit: 40  # Maximum number of batches for statistics (-1 = all)
+normalize_weights: false
+planned_growing_steps: ${schedule.growth_steps_per_layer}
+
+# Output extension initialization
+output_extension_init: copy_uniform  # Options: zeros, copy_uniform, kaiming
+input_extension_init: zeros  # Options: zeros, copy_uniform, kaiming
+
+# Neuron pairing and rescaling (variance transfer)
+neuron_pairing: null  # null or "vv_z_negz"
+rescaling: null  # null, "default_vt", "vt_constraint_old_shape", "vt_constraint_new_shape"
+noise_ratio: 0.001  # Symmetry-breaking noise for neuron pairing

@@ -1,0 +1,6 @@
+alpha: 0.1
+beta: 0.5
+max_iter: 20
+epsilon: 1.0e-3
+batch_limit: -1  # Maximum number of batches for line search (-1 = all)
+extended_search: false

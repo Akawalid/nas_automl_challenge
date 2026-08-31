@@ -1,0 +1,3 @@
+# perceptron.yml
+model: perceptron
+hidden_feature: 8

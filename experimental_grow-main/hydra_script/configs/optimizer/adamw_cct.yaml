@@ -1,0 +1,7 @@
+# AdamW settings from Compact-Transformers cct_7-3x1 CIFAR-10 300-epoch config.
+# @package _global_
+
+_target_: torch.optim.AdamW
+lr: 0.00055
+betas: [0.9, 0.999]
+weight_decay: 0.06

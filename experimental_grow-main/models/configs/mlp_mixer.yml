@@ -1,0 +1,9 @@
+# model_config.yaml
+model: mlp_mixer
+patch_size: 4
+num_features: 128
+hidden_dim_token: 8
+hidden_dim_channel: 32
+num_blocks: 3
+dropout: 0.0
+device: null

@@ -1,0 +1,9 @@
+scheduler_step_granularity: epoch
+scheduler_object:
+  _target_: tools.lr_scheduler.WarmupCosineAnnealingLR
+  warmup_epochs: 10
+  max_epochs: 300  # Cosine reaches eta_min at epoch 300 (timm t_initial). Epochs beyond
+                   # this (e.g. the 10 cooldown epochs in the 310-epoch schedule) stay at eta_min.
+  warmup_start_lr: 0.00001
+  eta_min: 0.00001
+  warmup_prefix: false  # Match timm CosineLRScheduler: cosine clock counts from epoch 0.

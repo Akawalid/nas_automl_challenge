@@ -1,0 +1,5 @@
+model: resnet
+activation: relu
+number_of_blocks_per_stage: 2
+reduction_factor: 1
+skip_first_downsample: false

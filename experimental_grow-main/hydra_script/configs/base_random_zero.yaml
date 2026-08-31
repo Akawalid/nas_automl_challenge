@@ -1,0 +1,18 @@
+defaults:
+  - config
+  - override dataset_config: cifar100
+  - override early_stopping: accuracy
+  - override general: default
+  - override growing: random_zeros
+  - override growing/normalization: none
+  - override line_search: default
+  - override lr_scheduler: constant
+  - override mlflow: iceberg
+  - override model: resnet18
+  - override optimizer: sgd
+  - override schedule: default
+  - _self_
+
+mlflow:
+  experiment_name: "baseline"
+  run_name: "random_zeros"

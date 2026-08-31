@@ -1,0 +1,6 @@
+# model_config.yaml
+model: mlp
+number_hidden_layers: 1
+hidden_size: 10
+activation: relu
+use_bias: true

@@ -1,0 +1,48 @@
+defaults:
+  - config
+  - override dataset_config: dry-ricker
+  - override optimizer: adam
+  - override hydra/launcher: margaret_submitit
+  - override metric: eeg_custom
+  - override model: eeg_cnn
+  - _self_
+
+mlflow:
+  experiment_name: "eeg-final"
+  run_name: "growth-${dataset_config.ncal}-${dataset_config.participant}"
+
+
+general:
+  batch_size: 128
+
+model:
+  initial_last_layer_size: 10
+
+optimizer:
+  lr: 1e-3
+  amsgrad: true
+
+schedule:
+  layer_order: [0]
+  epochs_between_growth: 4
+  growth_size: [10]
+  growth_steps_per_layer: 60
+  training_steps_after_growth: 300
+
+growing:
+  statistical_threshold: 0.01
+  numerical_threshold: 1.0e-5
+  batch_limit: -1
+  use_projected_gradient: true
+
+line_search:
+  max_iter: 20
+  extended_search: true
+  epsilon: 1.0e-3
+  max_gamma: 1.0
+
+hydra:
+  sweeper:
+    params:
+      ++dataset_config.participant: P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P24
+      ++dataset_config.ncal: 4, 5, 6

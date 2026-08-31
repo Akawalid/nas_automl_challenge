@@ -1,0 +1,8 @@
+# ResNet18 model configuration
+# @package _global_
+
+defaults:
+  - resnet18_full
+  - _self_
+
+reduction_factor: 0.015625 # 1/64

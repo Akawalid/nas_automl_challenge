@@ -1,0 +1,45 @@
+# Fashion-MNIST dataset configuration
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+
+name: fashion-mnist
+num_classes: 10
+cutmix_prob: 0.0
+
+dataset:
+  _target_: torchvision.datasets.FashionMNIST
+  root: ${dataset_config.path}
+  download: true
+
+sources:
+  train:
+    extra_args:
+      train: true
+  test:
+    extra_args:
+      train: false
+
+transforms:
+  standard:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: torchvision.transforms.Normalize
+        mean: [0.2860]
+        std: [0.3530]
+  augmented:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.RandomCrop
+        size: 32
+        padding: 4
+        padding_mode: reflect
+      - _target_: torchvision.transforms.RandomHorizontalFlip
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: torchvision.transforms.Normalize
+        mean: [0.2860]
+        std: [0.3530]

@@ -1,0 +1,2 @@
+path: "${oc.env:HOME}/datasets"
+split_train_val: 0.05

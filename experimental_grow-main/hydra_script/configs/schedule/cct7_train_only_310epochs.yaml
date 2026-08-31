@@ -1,0 +1,12 @@
+# Train-only schedule reproducing the Compact-Transformers CCT recipe:
+# epochs(300) + cooldown_epochs(10) = 310 total. The cosine scheduler
+# (cct_cosine_warmup_300) reaches eta_min at epoch 300; the final 10 epochs
+# run at eta_min, matching timm's cooldown.
+num_layers: 7
+layer_order: null
+epochs_between_growth: -1
+growth_steps_per_layer: 0
+growth_size: null
+training_steps_after_growth: 310
+output_file: null
+include_completion_step: false

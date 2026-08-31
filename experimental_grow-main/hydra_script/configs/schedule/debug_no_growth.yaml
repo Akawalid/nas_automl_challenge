@@ -1,0 +1,7 @@
+num_layers: null  # Number of layers (null = infer from model)
+layer_order: null  # Order of layers to grow (null = default order)
+epochs_between_growth: -1
+growth_steps_per_layer: 0
+growth_size: null  # null means automatic
+training_steps_after_growth: 40
+output_file: null  # Path to save schedule (null = don't save)

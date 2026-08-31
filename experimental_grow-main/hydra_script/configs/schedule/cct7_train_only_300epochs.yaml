@@ -1,0 +1,8 @@
+num_layers: 7
+layer_order: null
+epochs_between_growth: -1
+growth_steps_per_layer: 0
+growth_size: null
+training_steps_after_growth: 300
+output_file: null
+include_completion_step: false

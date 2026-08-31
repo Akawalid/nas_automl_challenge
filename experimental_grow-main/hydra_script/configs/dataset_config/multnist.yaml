@@ -1,0 +1,37 @@
+# MultNIST (NAS small benchmark) — NCL Figshare .npy bundle via tools.datasets.MultNIST
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+name: multnist
+num_classes: 10
+
+dataset:
+  _target_: tools.datasets.MultNIST
+  root: ${dataset_config.path}
+  download: true
+
+sources:
+  train:
+    extra_args:
+      train: true
+  test:
+    extra_args:
+      train: false
+
+transforms:
+  standard:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+  # Numpy samples: ToTensor then tensor-space aug (see tools.augmentations)
+  augmented:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: tools.augmentations.PerChannelRandomAffine
+        degrees: 5
+        translate: [0.05, 0.05]
+        scale: [0.95, 1.05]

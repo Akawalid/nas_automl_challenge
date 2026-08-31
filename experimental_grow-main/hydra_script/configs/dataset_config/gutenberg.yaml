@@ -1,0 +1,28 @@
+# Gutenberg (NAS small benchmark) — NCL Figshare .npy bundle via tools.datasets.Gutenberg
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+name: gutenberg
+num_classes: 6
+
+dataset:
+  _target_: tools.datasets.Gutenberg
+  root: ${dataset_config.path}
+  download: true
+
+sources:
+  train:
+    extra_args:
+      train: true
+  test:
+    extra_args:
+      train: false
+
+transforms:
+  standard:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor

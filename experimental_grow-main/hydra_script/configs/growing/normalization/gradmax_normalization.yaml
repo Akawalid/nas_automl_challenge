@@ -1,0 +1,4 @@
+normalize_updates: true
+normalization_type: gradmax_normalization
+# Scalar s in c = s * mean(||W_i||) for GradMax fan-in slice normalization (default 1).
+gradmax_scale: 1.0

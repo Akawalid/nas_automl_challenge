@@ -1,0 +1,6 @@
+
+
+experiment_name: "debug"
+tracking_uri: "file:${oc.env:HOME}/tau_frugal/${oc.env:USER}/mlruns"
+run_name: null  # null = auto-generate
+log_system_metrics: true

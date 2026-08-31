@@ -1,0 +1,8 @@
+
+metric_name: "val_loss"
+reset_on_growth_step: true
+early_stopping_object:
+  _target_: hydra_script.aux_train_and_grow.EarlyStopping
+  patience: 1000
+  min_delta: -10.0
+  mode: "min"

@@ -1,0 +1,2 @@
+model: resnet
+number_of_blocks_per_stage: 1

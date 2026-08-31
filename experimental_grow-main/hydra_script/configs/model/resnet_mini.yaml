@@ -1,0 +1,6 @@
+
+model: resnet
+activation: relu
+number_of_blocks_per_stage: 1
+nb_stages: 3
+inplanes: 16

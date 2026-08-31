@@ -1,0 +1,6 @@
+# Hydra configuration for custom output paths
+run:
+  dir: ${oc.env:HOME}/tau_frugal/${oc.env:USER}/hydra_outputs/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+sweep:
+  dir: ${oc.env:HOME}/tau_frugal/${oc.env:USER}/hydra_outputs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  subdir: ${hydra.job.num}

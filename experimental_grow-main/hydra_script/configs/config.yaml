@@ -1,0 +1,22 @@
+# Main configuration file for train_and_grow.py
+# This file uses Hydra's defaults list to compose the configuration
+
+defaults:
+  - dataset_config: mnist
+  - early_stopping: accuracy
+  - general: default
+  - growing: fogro
+  - hydra: custom_paths
+  - line_search: default
+  - loss: cross_entropy_loss
+  - lr_scheduler: constant
+  - metric: multiclass_accuracy
+  - mlflow: iceberg
+  - model: resnet_mini
+  - optimizer: sgd
+  - schedule: default
+  - _self_
+
+# Training parameters
+training:
+  training_threshold: null  # Stop training when loss is below this (null = disabled)

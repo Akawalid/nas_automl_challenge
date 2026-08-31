@@ -1,0 +1,13 @@
+# @package _global_
+defaults:
+  - override /early_stopping: accuracy
+  - override /growing: none
+  - override /line_search: default
+  - override /lr_scheduler: constant
+  - override /mlflow: iceberg
+  - override /model: resnet18_full
+  - override /optimizer: sgd
+  - override /schedule: classic
+
+mlflow:
+  run_name: "full_resnet"

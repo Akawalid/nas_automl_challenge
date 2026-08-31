@@ -1,0 +1,9 @@
+num_layers: null  # Number of layers (null = infer from model)
+layer_order: null  # null = 0,1,...,n-1. Use [-1] or e.g. [0,-1,2] for "grow all layers at once" at that position (-1 means one growth step with layer_index -1).
+growth_warmup_steps: 0 # Number of SGD steps (epochs) without growth before the first growth phase.
+epochs_between_growth: 1  # float supported: e.g. 0.5 = half-epoch SGD steps, 2.5 = 2 full + 1 partial
+growth_steps_per_layer: 10
+growth_size: null  # null means automatic
+training_steps_after_growth: 100
+output_file: null  # Path to save schedule (null = don't save)
+include_completion_step: false  # Whether to include a final training step after all growth is complete

@@ -1,0 +1,33 @@
+# CIFARTile (NAS small benchmark) — NCL Figshare .npy bundle via tools.datasets.CIFARTile
+# @package _global_
+
+defaults:
+  - base
+  - _self_
+
+name: cifartile
+num_classes: 4
+
+dataset:
+  _target_: tools.datasets.CIFARTile
+  root: ${dataset_config.path}
+  download: true
+
+sources:
+  train:
+    extra_args:
+      train: true
+  test:
+    extra_args:
+      train: false
+
+transforms:
+  standard:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+  augmented:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: torchvision.transforms.RandomHorizontalFlip

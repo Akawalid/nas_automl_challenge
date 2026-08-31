@@ -1,0 +1,5 @@
+scheduler_step_granularity: epoch
+scheduler_object:
+  _target_: torch.optim.lr_scheduler.MultiStepLR
+  milestones: [30, 60, 90]
+  gamma: 0.2

@@ -1,0 +1,8 @@
+model: vgg
+activation: relu
+
+# Keep normalization disabled to match GradMax settings used by the authors.
+normalization: null
+
+# Keep the classifier minimal in this implementation (not fully conv-only).
+number_of_fc_layers: 1

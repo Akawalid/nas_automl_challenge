@@ -1,0 +1,12 @@
+defaults:
+  - base_eeg
+  - _self_
+
+mlflow:
+  run_name: "cnn-${dataset_config.ncal}-${dataset_config.participant}"
+
+model:
+  initial_last_layer_size: 256
+
+schedule:
+  growth_steps_per_layer: -1
