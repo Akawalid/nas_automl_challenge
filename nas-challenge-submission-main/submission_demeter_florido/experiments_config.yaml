@@ -1,0 +1,167 @@
+experiment:
+  name: pipeline-default
+  seed: 0
+
+dataset:
+  name: cifar10
+  path: "~/datasets"
+  shuffle: true
+  val_split: 0.1
+  dev_split: 0.4
+  augment: true
+
+model:
+  class: cell_arch.CellArchitecture
+  init_hidden_channels: 64
+  hidden_features: 128
+  use_layer_norm: true
+  use_batch_norm: false
+  use_group_norm: false
+  group_norm_num_groups: 1
+  ema: true
+
+logger:
+  api: wandb
+  exp_name: Debug
+  port: 27028
+  enabled: true
+  path: logs
+  tmpdir: temp
+  save_intermediate_models: true
+
+training:
+  epochs: 100
+  epoch_scaling: 0.0
+  batch_size: 256
+  device: cuda
+  loss_function: torch.nn.CrossEntropyLoss
+  label_smoothing: 0.0
+  lrate: 0.001
+  weight_decay: 0.008
+  momentum: 0.99
+  eps: 0.0001
+  optimizer: torch.optim.AdamW
+  grad_clip: 1.0
+  scheduler: torch.optim.lr_scheduler.CosineAnnealingLR
+  eta_min: 0.00001
+  # Scheduler ablations. With both disabled, every train step creates the
+  # original CosineAnnealingLR with T_max=training.epochs.
+  ablations:
+    # Adds a linear ramp from eta_min to lrate. It restarts at every train step,
+    # unless global_scheduler is also enabled, in which case it runs only once.
+    linear_warmup:
+      enabled: false
+      epochs: 10
+    # Uses one cosine curve across all train steps and growth phases, unless
+    # post_growth_scheduler is enabled, in which case the same total_epochs
+    # duration is used only after growth finishes.
+    global_scheduler:
+      enabled: false
+      total_epochs: 350
+      # When the global scheduler is rebound to a new optimizer after growth,
+      # warm up from eta_min to the LR where the global cosine was paused.
+      rebind_linear_warmup:
+        enabled: false
+        epochs: 10
+    # Keeps a constant learning rate during initial/intermediate growth
+    # training, then starts the scheduler only for final training. The optional
+    # nested warmup applies before the fixed LR in each growth train phase.
+    post_growth_scheduler:
+      enabled: false
+      growth_linear_warmup:
+        enabled: false
+        epochs: 10
+    # Uses training.label_smoothing during growth, then disables it for the
+    # final post-growth training phase.
+    growth_label_smoothing:
+      enabled: false
+    # Preserves SGD momentum buffers across the optimizer reinitialization that
+    # happens between train phases. Existing tensor blocks keep their momentum;
+    # newly added tensor blocks start with zero momentum.
+    sgd_momentum_transfer:
+      enabled: false
+  early_stopping: true
+  es_abs_delta: 0.005
+  es_patience: 3
+
+growth:
+  steps: 60
+  batch_size: 64
+  max_activities_size: 2048
+  neurons: 100
+  neuron_scaling: 0.0
+  neuron_selection_threshold: 0.00028
+  #neuron_selection_threshold: 0.0001
+  neuron_epochs: 100
+  neuron_lrate: 0.001
+  neuron_batch_size: 256
+  dependency_estimation_sample_size: 1000
+  use_first_order_improvement: true
+  du_threshold: 0.00001
+  #du_threshold: 0.00122
+  initialization_strategy: local
+  use_line_search: true
+  fixed_scaling_factor: 1.0
+  disable_optimal_delta_on_apply_change: false
+  incoming_init: kaiming
+  outgoing_init: zeros
+  new_edge_init: zeros
+  ablations:
+    # Adds Gaussian noise directly to the saved pre_activities_grad.pt tensors.
+    # With relative=true, std is multiplied by each tensor's own std.
+    noisy_pre_activities_grad:
+      enabled: false
+      std: 0.1
+      relative: true
+    # Applies Gromo DAG variance-transfer rescaling to the selected growth
+    # action immediately before committing it.
+    variance_transfer:
+      enabled: false
+      rescaling: vt_constraint_old_shape
+  # Init/scaling ablation profile:
+  # initialization_strategy: init_scaling_ablation
+
+pipeline:
+  - load_data
+  - split_data
+  - create_dataloaders
+  - set_global_device
+  - create_model
+  - train
+  - loop:
+      var: global_step
+      over: ${growth.steps}
+      steps:
+        - split_data
+        - create_dataloaders
+        # - loop:
+        #     var: inner_step
+        #     over: 4
+        #     steps:
+        - cycle_layers
+        - define_growth_actions
+        - init_computation
+        - update_computation
+        - compute_optimal_delta
+        - calculate_bottleneck
+        - reset_computation
+        - empty_cache
+        - estimate_most_important_node
+        #- estimate_dependencies
+        - restrict_growth_actions
+        - execute_expansion
+        - calculate_amplitude_factor
+        - choose_best_growth_action
+        - apply_change
+        - delete_update
+        - update_size
+        - empty_cache
+        - evaluate
+        - log_results
+        - train
+        # Save distinct checkpoints on the cluster without uploading them to W&B.
+        - save_intermediate_model
+        - empty_cache
+  - disable_early_stopping
+  - train
+  - save_model

@@ -1,0 +1,30 @@
+# choose correct CUDA version for your system. See submission_gromo_dag/requirements.txt for CPU/other-CUDA variants.
+-f https://download.pytorch.org/whl/cu113/torch_stable.html
+torch==2.6.0
+torchvision==0.21.0
+
+numpy
+
+# gromo itself is vendored in python_packages/, from Santiago Florido's own fork/branch
+# (github.com/Santiago23florido/gromo.git@AblationDAG) -- the same vendored copy submission_demeter
+# uses, verified identical to upstream except two narrowly-scoped local bugfixes (see
+# python_packages/gromo/containers/growing_dag.py and modules/growing_module.py).
+
+# Unlike submission_demeter, this submission also vendors Florido's own real orchestration code
+# (python_packages/experiments/, python_packages/tools/ -- copied verbatim from
+# experimental_grow-main), which needs its own real dependencies below -- found by statically and
+# recursively tracing every import reachable from experiments/pipeline/run_pipeline.py and
+# pipeline.py (including the dynamically-loaded model class), not guessed.
+GitPython
+networkx
+timm
+tqdm
+matplotlib
+pyyaml
+python-dotenv
+hydra-core>=1.3.2
+mlflow>=3
+pyvis
+psutil
+wandb>=0.18
+requests

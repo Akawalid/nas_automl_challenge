@@ -81,3 +81,42 @@ notes given interactively during the build).
 
 
 Line 526, section name unknown
+
+
+
+
+
+
+
+
+
+
+
+Confirmed: the process is dead, not still running — it crashed 26 minutes into round 1, before printing a single [DBG] line. grep -c '[DBG]' on the log returns 0.
+
+What actually happened: the run got through the seed-training pass and into round 1's first dag (dag1), reached the gather_full_model_statistics(...) call at nas.py:266, which succeeded — then crashed on the very next line, the diagnostic evaluate_model(...) call I added at nas.py:274 to get a bonus growth_pool_sample_acc reading for the [DBG] print:
+
+Confirmed dead, not still running. Here's what's actually in that log:
+
+Zero [DBG] lines exist — the run crashed before printing any. It got through the seed-training pass and 13 "Time Remaining" ticks, then died on the very first dag of round 1, before the print statement even executed:
+
+
+File "nas.py", line 274, in search
+    train_loss, train_acc = evaluate_model(model, _sample_loader, loss_fn, top_1_accuracy, self.device)
+  File "helpers.py", line 127, in evaluate_model
+    y_pred = model(x)
+  ...
+  File "gromo/modules/growing_module.py", line 252, in forward
+    self.input.retain_grad()
+RuntimeError: can't retain_grad on Tensor that has requires_grad=False
+Root cause — a bug in the diagnostic code itself, not in the algorithm:
+
+nas.py:266-269 calls gather_full_model_statistics(...). That function sets each growing module's store_input flag to a positive count so forward() will do self.input.retain_grad() on the next pass (it's gated: growing_module.py:249-251 — if self.store_input > 0: self.input = x; self.input.retain_grad()).
+It never resets that flag before returning.
+My added diagnostic line right after it (nas.py:274) calls evaluate_model(...), which wraps its forward pass in torch.no_grad() (helpers.py:124).
+With store_input still armed from the stats call, forward() tries retain_grad() on a tensor that no_grad() just made requires_grad=False → crash.
+So this is my own instrumentation stepping on gromo's stateful store_input flag — not something that happens in the real growth loop (which never calls a no_grad() eval immediately after a stats-gathering pass), and it tells us nothing about growth_pool_sample_acc or the overfitting hypothesis. No data was collected for round 1 or any round.
+
+Fix, if you want this rerun: either (a) reset store_input to 0 on all growing modules right after gather_full_model_statistics returns and before the diagnostic evaluate_model call, or (b) drop the torch.no_grad() requirement for this one diagnostic call (compute accuracy manually without wrapping in no_grad, just not calling .backward()). (a) is cleaner and doesn't touch vendored gromo code at all — just reorder/reset in my own nas.py.
+
+Want me to apply that fix and relaunch the run in the background, or, given the pivot to submission_demeter_florido, is this diagnostic on the old reimplementation still worth chasing at all?
