@@ -102,7 +102,7 @@ mkdir -p "$DATA_DIR/logs/$RUN_NAME" "$DATA_DIR/tmp/$RUN_NAME"
 # COMMON_ARGS + growth.initialization_strategy override -- nothing added or removed beyond
 # pointing --logger.enabled false (skip wandb entirely, redundant with WANDB_MODE=offline above
 # but explicit) and using this run's own name/paths instead of the ablation-array ones.
-python experiments/pipeline/run_pipeline.py \
+python experiments/pipeline/run_and_report.py \
     --config experiments/pipeline/experiments_config.yaml \
     --experiment.seed "$SEED" \
     --experiment.name "$RUN_NAME" \
