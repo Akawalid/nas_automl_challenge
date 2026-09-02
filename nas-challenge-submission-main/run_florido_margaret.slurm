@@ -12,18 +12,25 @@
 # completion. evaluation/main.py's TIME_LIMIT countdown thread can't actually stop it mid-training
 # (Python threads aren't preemptible), it only unblocks the harness's main thread while the real
 # run keeps going in the background -- so the ONLY hard stop is SLURM's own --time allocation
-# below. No completed run's actual elapsed time is recorded anywhere in experimental_grow-main
-# (checked -- no .out/.err/sacct output committed, only his own README telling YOU to check
-# `sacct -j JOB_ID --format=Elapsed` yourself after running). What IS real evidence: his own
-# ablation scripts for this exact full config (run_init_scaling_ablation.slurm,
+# below. His own ablation scripts for this exact full config (run_init_scaling_ablation.slurm,
 # run_cifar_init_noisy_ablation.slurm, run_variance_transfer_ablation.slurm, etc., all single
-# dataset/single seed like this run) all request --time=48:00:00, not 24h -- matched here rather
-# than guessed.
+# dataset/single seed like this run) all request --time=48:00:00 -- matched here.
 #
-# Defaults to CIFARTile only (one dataset) -- matching the earlier full-fidelity sanity check done
-# against submission_demeter, so this run is directly comparable to that one and to the paper's
-# Table 3 (55.7% +/- 2.7% for CifarTile). Override DATASETS_TO_RUN to add more once you've seen how
-# long one takes.
+# NO PERSISTED OUTPUT: this deliberately does NOT save predictions/scoring/results anywhere --
+# score.py's own Raw/Adj Score/params/runtime printout (visible directly in this job's own
+# logs/slurm-%x-%j.out) is the only thing kept. Each run builds and scores inside an ephemeral
+# per-job directory (see JOB_WORKDIR below), auto-deleted on exit.
+#
+# PARALLEL-SAFE: earlier versions of this script cd'd into the shared
+# nas-challenge-submission-main/ and let `make` build package/ and scoring/ THERE -- fine for one
+# job at a time, but multiple concurrent jobs would race on the same rm -Rf package/mkdir package
+# (Makefile's build/score targets are destructive). Fixed by giving each job its own JOB_WORKDIR
+# (symlinks to the shared datasets/evaluation/$SUBMISSION -- cheap, no multi-GB copy -- plus its
+# own Makefile copy) so `make`'s package/scoring live in a job-private directory. The dataset
+# download loop is also narrowed to just $DATASETS_TO_RUN (was: all 5 unconditionally) so two
+# jobs targeting different datasets never touch the same not-yet-downloaded files. pip install
+# still targets the one shared venv, so that one step is flock-guarded to serialize it across
+# concurrent jobs (harmless once deps are already installed -- the lock is held only briefly).
 #
 # I (Claude) cannot submit or run this on margaret myself -- I have no access to that cluster.
 #
@@ -31,10 +38,11 @@
 #   1. git clone (or pull) this repo onto margaret -- see PROJECT_DIR below. This needs
 #      submission_demeter_florido/ to actually be present in the clone (it's tracked in git,
 #      not gitignored -- verify with `git ls-files submission_demeter_florido | head`).
-#   2. sbatch --export=VENV_DIR=/path/to/your/venv run_florido_margaret.slurm
-#      -- datasets/ is populated automatically on first run, same as run_demeter_margaret.slurm.
-#      -- override any variable below the same way, e.g.
-#         sbatch --export=VENV_DIR=...,DATASETS_TO_RUN="CIFARTile Gutenberg" run_florido_margaret.slurm
+#   2. sbatch --export=VENV_DIR=/path/to/your/venv,DATASETS_TO_RUN=CIFARTile run_florido_margaret.slurm
+#      -- safe to submit several of these concurrently for different DATASETS_TO_RUN values, e.g.
+#         for d in MultNIST Gutenberg GeoClassing Chesseract; do
+#             sbatch --job-name=florido_$d --export=VENV_DIR=...,DATASETS_TO_RUN=$d run_florido_margaret.slurm
+#         done
 
 #SBATCH --job-name=florido_benchmarks
 #SBATCH --partition=tau
@@ -62,13 +70,8 @@ SUBMISSION="${SUBMISSION:-submission_demeter_florido}"
 # tqdm, etc. -- see requirements.txt) get installed into it below if missing.
 VENV_DIR="${VENV_DIR:?VENV_DIR is required -- e.g. sbatch --export=VENV_DIR=$HOME/.venvs/demeter run_florido_margaret.slurm}"
 
-RESULTS_NAME="${RESULTS_NAME:-${SLURM_JOB_NAME:-florido}_${SLURM_JOB_ID:-manual}_$(date +%Y%m%d_%H%M%S)}"
-RESULTS_DIR="results/${RESULTS_NAME}"
-
 # Which dataset folders (under datasets/) main.py should actually process this run -- space
-# separated, matching the folder names in DATASET_IDS below. Defaults to CIFARTile only: the point
-# of this run is a real, single-dataset comparison against the paper's Table 3/Table 2 numbers, not
-# a full 5-dataset sweep (which would multiply the already-unknown per-dataset wall-clock cost by 5).
+# separated, matching the folder names in DATASET_IDS below. Defaults to CIFARTile only.
 DATASETS_TO_RUN="${DATASETS_TO_RUN:-CIFARTile}"
 
 export PYTHONUNBUFFERED=1
@@ -81,7 +84,6 @@ echo "Job id: ${SLURM_JOB_ID:-manual}"
 echo "Host: $(hostname)"
 echo "Submission: $SUBMISSION"
 echo "Datasets to run: $DATASETS_TO_RUN"
-echo "Results will be left at: nas-challenge-submission-main/$RESULTS_DIR"
 nvidia-smi
 
 # ---- environment ----
@@ -90,12 +92,15 @@ source "$VENV_DIR/bin/activate"
 python -c "import torch, torchvision; print('torch', torch.__version__, 'torchvision', torchvision.__version__, 'cuda available:', torch.cuda.is_available())"
 
 # gromo itself is vendored in $SUBMISSION/python_packages/, no separate install needed for that --
-# only the plain pip deps (requirements.txt pins a cu113 PyTorch build; check that matches
-# margaret's actual CUDA/driver before relying on this -- comment out the -f line / adjust the
-# torch/torchvision pins if not, same caveat as run_demeter_margaret.slurm).
-pip install --no-cache-dir -r "$SUBMISSION/requirements.txt"
+# only the plain pip deps. flock-guarded: safe if another concurrent job is installing into the
+# same shared venv at the same time (see header comment).
+(
+    flock -x 200
+    pip install --no-cache-dir -r "$SUBMISSION/requirements.txt"
+) 200>"$VENV_DIR/.pip_install.lock"
 
-# ---- datasets (identical to run_demeter_margaret.slurm -- see there for provenance notes) ----
+# ---- datasets (identical provenance to run_demeter_margaret.slurm) -- only downloads what THIS
+# job actually needs, so concurrent jobs targeting different datasets never touch the same files.
 declare -A DATASET_IDS=(
     [MultNIST]="24574678:1"
     [CIFARTile]="24551539:1"
@@ -136,12 +141,25 @@ PYEOF
     echo "  $name: done ($(du -sh "$dir" | cut -f1))"
 }
 
-echo "Checking datasets/ (downloading anything missing)..."
+echo "Checking datasets/ for: $DATASETS_TO_RUN"
 mkdir -p datasets
-for name in "${!DATASET_IDS[@]}"; do
+for name in $DATASETS_TO_RUN; do
     download_dataset "$name" "${DATASET_IDS[$name]}"
 done
-echo "Datasets ready: $(ls datasets)"
+
+# ---- ephemeral per-job build dir -- see header comment. Symlinks (not copies) to the shared,
+# read-only-during-build datasets/evaluation/$SUBMISSION; only package/ and scoring/ (what make
+# actually writes into) end up job-private. Auto-removed on exit, including on failure.
+JOB_WORKDIR="/tmp/${USER}_florido_${SLURM_JOB_ID:-manual}"
+mkdir -p "$JOB_WORKDIR"
+trap 'rm -rf "$JOB_WORKDIR"' EXIT
+
+REPO_DIR="$(pwd)"
+ln -sfn "$REPO_DIR/datasets" "$JOB_WORKDIR/datasets"
+ln -sfn "$REPO_DIR/evaluation" "$JOB_WORKDIR/evaluation"
+ln -sfn "$REPO_DIR/$SUBMISSION" "$JOB_WORKDIR/$SUBMISSION"
+cp "$REPO_DIR/Makefile" "$JOB_WORKDIR/Makefile"
+cd "$JOB_WORKDIR"
 
 # ---- run (Makefile: clean -> build, then prune to DATASETS_TO_RUN, then run -> score) ----
 make submission="$SUBMISSION" clean build
@@ -173,11 +191,4 @@ cp -R package/predictions scoring
 cp evaluation/score.py scoring/score.py
 cd scoring; python3 score.py; cd ..
 
-# ---- collect results ----
-mkdir -p "$RESULTS_DIR"
-rsync -av package/predictions/ "$RESULTS_DIR/predictions/"
-[ -d scoring ] && rsync -av scoring/ "$RESULTS_DIR/scoring/"
-cp "slurm-${SLURM_JOB_NAME:-florido_benchmarks}-${SLURM_JOB_ID:-manual}.out" \
-   "$RESULTS_DIR/run.log" 2>/dev/null || true
-
-echo "Done. Results left at nas-challenge-submission-main/$RESULTS_DIR"
+echo "Done (nothing persisted -- scores are above / in this job's own log)."
