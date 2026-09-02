@@ -13,6 +13,15 @@
 # class (tools/datasets.py's NpyWebDataset) auto-downloads from the same figshare URLs already
 # verified working elsewhere in this project.
 #
+# PARTITION: back to --partition=tau -- checked against the actual margaret hardware docs
+# (clusters-saclay.gitlabpages.inria.fr): margpu008 (3x A100 40GB -- what Florido's own real
+# launch_local_base_multi_dataset.sh pins to) is Tau-team-owned hardware, so --partition=tau is
+# plausibly the correct, priority path to it, not a weaker fallback. The GeoClassing OOM (10.90
+# GiB total GPU capacity at crash time) matches margpu017-023's 2080Ti cards (11GB) instead --
+# this run just never requested margpu008 specifically and landed on a small card by chance. For
+# GeoClassing specifically, override at submit time:
+#   sbatch --nodelist=margpu008 --export=ALL,VENV_PATH=...,DATASET=geoclassing run_original_cifartile_margaret.slurm
+#
 # I (Claude) cannot submit or run this on margaret myself -- I have no access to that cluster.
 #
 # Usage:

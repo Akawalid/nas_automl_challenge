@@ -16,6 +16,16 @@
 # run_cifar_init_noisy_ablation.slurm, run_variance_transfer_ablation.slurm, etc., all single
 # dataset/single seed like this run) all request --time=48:00:00 -- matched here.
 #
+# PARTITION: back to --partition=tau. Checked against the actual margaret hardware docs
+# (clusters-saclay.gitlabpages.inria.fr) -- margpu008 (3x A100 40GB, the node Florido's own real
+# benchmark launcher launch_local_base_multi_dataset.sh pins to for the runs that produced the
+# paper's numbers) is Tau-team-owned hardware, so --partition=tau is plausibly the correct,
+# priority path to it, not a weaker fallback as an earlier version of this comment assumed. The
+# GeoClassing OOM (10.90 GiB total GPU capacity at crash time) matches margpu017-023's 2080Ti
+# cards (11GB each) instead -- i.e. this run simply never requested margpu008 specifically and
+# landed on a small card by chance, on either partition name. For GeoClassing specifically, use
+# run_florido_geoclassing_margaret.slurm (pins --nodelist=margpu008) rather than this script.
+#
 # NO PERSISTED OUTPUT: this deliberately does NOT save predictions/scoring/results anywhere --
 # score.py's own Raw/Adj Score/params/runtime printout (visible directly in this job's own
 # logs/slurm-%x-%j.out) is the only thing kept. Each run builds and scores inside an ephemeral
