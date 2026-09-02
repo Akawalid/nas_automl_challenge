@@ -77,10 +77,17 @@ class NAS:
 
         # The real pipeline: as defined in experiments_config.yaml, minus `load_data` (the
         # challenge already handed us the data; DataProcessor built train_set/val_set above in
-        # its place) and `set_random_seed` (the challenge's own harness doesn't expose per-dataset
-        # seeding the way run_pipeline.py's CLI does -- cfg["experiment"]["seed"] above still
-        # feeds anything downstream that reads it directly).
-        steps = [s for s in cfg["pipeline"] if s not in ("load_data", "set_random_seed")]
+        # its place). NOTE on reproducibility, checked directly: `set_random_seed` (the only step
+        # that actually calls set_random_seeds(seed, device) -- confirmed the only call site in
+        # experiments/pipeline/) is NOT a member of experiments_config.yaml's own pipeline: list at
+        # all (grepped both shipped configs, zero matches) -- so Florido's OWN reference CLI
+        # (run_pipeline.py's main(), which runs cfg["pipeline"] unmodified) never seeds the RNGs
+        # either. This class matches that exactly rather than introducing seeding his own default
+        # config doesn't have. A real side-by-side margaret run (this class vs. the standalone
+        # script) showed a 2.77-point CifarTile accuracy gap between two otherwise-identical runs
+        # -- consistent with ordinary unseeded run-to-run variance (matches the paper's own
+        # reported +/-2.7% std for CifarTile closely), not a bug in this port.
+        steps = [s for s in cfg["pipeline"] if s != "load_data"]
 
         execute_pipeline(cfg, steps, context)
 

@@ -1,0 +1,149 @@
+Reproduction notes -- Stella_s_neurips_2026.pdf
+"Should I train or should I grow? Single-Run Architecture Search by Network Growth"
+(anonymous NeurIPS 2026 submission, 25 pages)
+
+Notes accumulated while implementing the paper's method ("Demeter") as a NAS-challenge
+submission and checking it against the paper's own reported numbers. Two kinds of entry:
+  (1) Internal inconsistencies within the paper's own text/notation (not bugs in the
+      accompanying code).
+  (2) Findings from actually reproducing the paper's numbers -- real measured results compared
+      against what the paper reports, once a faithful (non-reimplemented) run was available.
+
+Bugs found in the accompanying code (gromo / experimental_grow) are documented separately as
+code comments in the submission itself (search for "LOCAL PATCH" in
+nas-challenge-submission-main/submission_demeter/python_packages/gromo).
+
+================================================================================================
+Part 1 -- Paper-text inconsistencies
+================================================================================================
+
+--------------------------------------------------------------------------------
+
+1) Threshold symbol mismatch: tau vs. s
+
+   Same concept (the per-channel pruning cutoff on new-neuron alignment score, used to decide
+   "how much" to grow), same numeric value (2.8e-4), two different symbols depending on which
+   part of the paper you're in:
+
+   - Algorithm 1 ("Growth Step"), page 17, formal pseudocode:
+       "Require: Threshold tau on the per-channel relevance"
+       "C* <- {c : r_c >= tau}"                    (step labelled [how much])
+
+   - Section 4.1 (Experimental setup), main text:
+       "...we performed grid search only once on MultNIST for the growth-stopping threshold u
+       and the neuron selection threshold s, and used the found hyperparameters
+       (u = 1e-5, s = 2.8e-4)..."
+
+   - Appendix B (Hyperparameters):
+       "The neurons are then selected using the threshold s = 2.8e-4 on their first order
+       improvement."
+
+   The prose (main text + Appendix B) consistently uses "s"; the formal algorithm box uses "tau"
+   for the identical quantity. Not a difference in meaning or value -- just inconsistent notation
+   across sections of the same paper.
+
+--------------------------------------------------------------------------------
+
+2) Is the classification head's hidden size (Z) grown, or fixed?
+
+   - Figure 4 caption (Section 3.5, macro-architecture diagram):
+       "...finally Global Average Pooling (GAP) feeding growable fully-connected layers.
+       C1, C2, C3, C4, and Z are also free to grow."
+     -> claims Z (the linear head's hidden width) is growable, same as the DAG cells' channel
+        counts C1..C4.
+
+   - The Figure 4 DIAGRAM ITSELF (not just the caption text) labels the two linear layers
+     explicitly: "linear 1: C4 -> Z" then "linear 2: Z -> Cout". This confirms Z is specifically
+     the hidden size between the two FC layers (linear 1's output / linear 2's input) -- i.e.
+     exactly the quantity Appendix A below calls "the hidden size of the first linear layer".
+     Cout is a separate, further-downstream box (the final num_classes output) that Appendix A
+     never mentions at all -- so this isn't two different variables being conflated, it's the
+     same named variable (Z) getting opposite claims (growable vs. fixed) in two sections.
+
+   - Appendix A (Architecture), describing the actual seed/benchmark configuration:
+       "The hidden size of the first linear layer is fixed at 128 neurons."
+     -> explicitly states Z is FIXED, not grown, for the benchmarked runs.
+
+   This is also confirmed against the actual reference implementation
+   (experimental_grow-main/experiments/pipeline/pipeline.py, function `cycle_layers`): the growth
+   loop's layer-cycling logic only ever visits GrowingGraphNetwork instances (the four DAG cells,
+   dag1..dag4) --
+
+       while not isinstance(growing_dag, GrowingGraphNetwork):
+           current_layer_idx = (current_layer_idx + 1) % len(model._growing_layers)
+           growing_dag = model._growing_layers[current_layer_idx]
+
+   -- so the linear head's own layers (mlp1 / mlp_merge / mlp2 in cell_arch.py's
+   CellArchitecture) are never selected for a growth step, despite being present in
+   `model._growing_layers`. In practice Z never grows; only C1..C4 do.
+
+   So: Figure 4's caption states the general framework's capability (Z "is also free to grow"),
+   while Appendix A and the actual code describe what the benchmarked configuration actually does
+   (Z fixed at 128). Worth knowing if you're matching the paper's reported numbers exactly --
+   the submission implemented here (submission_demeter) follows Appendix A / the actual code
+   (Z fixed), not the Figure 4 caption's more general claim.
+
+================================================================================================
+Part 2 -- Reproduction findings (measured results vs. the paper's reported numbers)
+================================================================================================
+
+--------------------------------------------------------------------------------
+
+3) CifarTile: parameter count consistently ~1.6x the paper's reported range
+
+   Paper's Table 2 reports final parameter count for CifarTile as 0.7M +/- 0.2M (i.e. an
+   expected 0.5M-0.9M range).
+
+   Two independent real, full-fidelity runs of Santiago Florido's own unmodified code
+   (submission_demeter_florido/, which vendors his real experiments/pipeline/pipeline.py
+   verbatim rather than reimplementing it -- see that submission's nas.py docstring) both landed
+   well above that range:
+
+     - Standalone run (run_original_cifartile_margaret.slurm, his own run_pipeline.py CLI,
+       untouched experiments_config.yaml): final parameter count 1,130,604.
+     - Same code wrapped for the NAS-challenge harness (submission_demeter_florido, margaret job
+       florido_benchmarks_511818): Model Params 1,147,878.
+
+   The two runs agree closely with each other (~1.13M vs ~1.15M, using different, unseeded RNG
+   states -- see finding 4 below) but both sit ~1.6x above the paper's upper bound (0.9M). Unlike
+   the accuracy gap (finding 4), this isn't explained by ordinary run-to-run noise: the paper
+   reports a std of only +/-0.2M, and both measured runs miss that band by roughly 3 std. Since
+   this is his own real, unmodified growth code and config, the gap points to either a
+   config/hyperparameter difference between what's in experiments_config.yaml and whatever
+   actually produced Table 2's numbers, or something about how "final parameter count" is
+   measured/reported in the paper that isn't reflected in `model.number_of_parameters()` here.
+   Not yet investigated further -- deprioritized for now in favor of the accuracy comparison,
+   which is the primary sanity check.
+
+--------------------------------------------------------------------------------
+
+4) CifarTile: accuracy matches the paper within its own reported noise -- once run through
+   Florido's real code instead of a reimplementation
+
+   Paper's Table 3 reports CifarTile accuracy as 55.7% +/- 2.7%.
+
+   - submission_demeter (Algorithm 1/2 reimplemented from the paper's own pseudocode, not ported
+     from his code): full-fidelity CifarTile runs scored 42.7-45.2% raw accuracy -- well outside
+     the paper's range, the original motivation for building submission_demeter_florido.
+   - submission_demeter_florido (his real code vendored verbatim, driven through the same
+     execute_pipeline() step-interpreter his own CLI uses): two independent real full-fidelity
+     CifarTile runs scored 52.52% (standalone script's own internal test-split accuracy,
+     acc_test) and 55.29% (challenge harness's score.py, scoring predict() output against the
+     dataset's real held-out test labels). Both fall inside or at the edge of the paper's
+     55.7% +/- 2.7% band.
+
+   The ~2.77-point gap between those two same-code runs initially looked like it might be a bug
+   in the challenge-harness wrapper (e.g. an unseeded-RNG asymmetry between the two entry
+   points). Checked directly and ruled out: `set_random_seed` -- the only step anywhere in
+   experiments/pipeline/ that actually calls set_random_seeds() -- is not a member of
+   experiments_config.yaml's own `pipeline:` list (grepped both shipped config variants, zero
+   matches), so Florido's OWN reference CLI (run_pipeline.py's main(), running cfg["pipeline"]
+   unmodified) never seeds the RNGs either. Both runs are equally unseeded. The 2.77-point gap is
+   therefore ordinary run-to-run variance, present in his own reference pipeline as shipped -- and
+   it lines up almost exactly with the paper's own reported +/-2.7% std for this dataset, which is
+   corroborating evidence the port is faithful rather than a red flag.
+
+   Net conclusion: once the paper's own real orchestration code is used unmodified (rather than
+   reimplemented from the pseudocode), both accuracy and parameter count land in the same
+   ballpark as the paper for CifarTile -- accuracy matches within the paper's own noise band;
+   parameter count does not (see finding 3).

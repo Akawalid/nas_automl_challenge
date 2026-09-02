@@ -33,12 +33,19 @@
 #                    "wandb>=0.18" requests
 #   4. sbatch --export=ALL,VENV_PATH=/path/to/venv run_original_cifartile_margaret.slurm
 #      (override GROMO_PYTHONPATH/DATA_DIR/SEED/SBATCH time the same way if needed)
+#      -- defaults to cifartile; override DATASET (multnist/cifartile/gutenberg/geoclassing/
+#      chesseract -- Florido's own lowercase --dataset.name values) to run a different one, e.g.
+#      sbatch --export=ALL,VENV_PATH=...,DATASET=multnist run_original_cifartile_margaret.slurm
+#      -- safe to submit several of these concurrently for different DATASET values: unlike
+#      submission_demeter_florido's Makefile-based run (which mutates a single shared package/
+#      directory), this script's own state (RUN_NAME-namespaced logs/tmp dirs, per-dataset
+#      subdirectories under DATA_DIR) doesn't collide across datasets.
 
 #SBATCH --job-name=demeter_original_cifartile
 #SBATCH --partition=tau
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 #SBATCH --output=slurm-%x-%j.out
 #SBATCH --error=slurm-%x-%j.err
 
@@ -62,8 +69,13 @@ VENV_PATH="${VENV_PATH:?VENV_PATH is required}"
 
 # Where the dataset gets auto-downloaded to/read from (figshare zip + extracted dir, NOT the
 # challenge-format .npy layout submission_demeter uses -- this is intentional, it's Florido's own
-# native dataset loader, unmodified).
+# native dataset loader, unmodified). Shared across datasets safely: NpyWebDataset downloads each
+# one into its own named subdirectory, no collision between concurrent runs on different datasets.
 DATA_DIR="${DATA_DIR:-$PROJECT_DIR/data}"
+
+# Which dataset -- Florido's own lowercase --dataset.name values (checked directly against
+# tools/augmentations.py's key set): multnist, cifartile, gutenberg, geoclassing, chesseract.
+DATASET="${DATASET:-cifartile}"
 
 SEED="${SEED:-0}"
 
@@ -78,6 +90,7 @@ echo "Host: $(hostname)"
 echo "Project dir: $PROJECT_DIR"
 echo "Gromo PYTHONPATH: $GROMO_PYTHONPATH"
 echo "Data dir: $DATA_DIR"
+echo "Dataset: $DATASET"
 echo "Seed: $SEED"
 nvidia-smi
 
@@ -95,7 +108,7 @@ export WANDB_MODE=offline
 python -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda.is_available())"
 python -c "import gromo; print('gromo:', gromo.__file__)"
 
-RUN_NAME="original_cifartile_seed${SEED}_${SLURM_JOB_ID:-manual}"
+RUN_NAME="original_${DATASET}_seed${SEED}_${SLURM_JOB_ID:-manual}"
 mkdir -p "$DATA_DIR/logs/$RUN_NAME" "$DATA_DIR/tmp/$RUN_NAME"
 
 # This is the exact invocation pattern from Florido's own run_init_scaling_ablation.slurm's
@@ -106,7 +119,7 @@ python experiments/pipeline/run_and_report.py \
     --config experiments/pipeline/experiments_config.yaml \
     --experiment.seed "$SEED" \
     --experiment.name "$RUN_NAME" \
-    --dataset.name cifartile \
+    --dataset.name "$DATASET" \
     --dataset.path "$DATA_DIR" \
     --growth.strategy restricted \
     --growth.initialization_strategy local \
